@@ -39,11 +39,11 @@ class BaseShape extends EventTarget {
 
     constructor(configs = {}) {
         super();
-        this.fill = (configs.fill || 'black');
-        this.stroke = (configs.stroke || 'black');
+        this.fill = (configs.fill || 'transparent');
+        this.stroke = (configs.stroke || 'transparent');
         this._strokeWidth = configs.storkeWidth || 0;
         this._strokeLineDash = configs.strokeLineDash || [];
-        this.shadowColor = (configs.shadowColor || 'black');
+        this.shadowColor = (configs.shadowColor || 'transparent');
         this._shadowOffsetX = configs.shadowOffsetX || 0;
         this._shadowOffsetY = configs.shadowOffsetY || 0;
         this._shadowBlur = configs.shadowBlur || 0;
@@ -52,12 +52,12 @@ class BaseShape extends EventTarget {
     }
 
     set fill(value) {
-        const c = d3.color(value || 'black');
+        const c = d3.color(value || 'transparent');
         this._fill = c;
         this.markDirty();
     }
     set stroke(value) {
-        const c = d3.color(value || 'black');
+        const c = d3.color(value || 'transparent');
         this._stroke = c;
         this.markDirty();
     }
@@ -67,7 +67,7 @@ class BaseShape extends EventTarget {
     }
 
     set shadowColor(value) {
-        const c = d3.color(value || 'black');
+        const c = d3.color(value || 'transparent');
         this._shadowColor = c;
         this.markDirty();
     }
@@ -134,6 +134,14 @@ class BaseShape extends EventTarget {
 
     getBoundingBox() {
         return this._boundingbox.bounding;
+    }
+
+    updateWorldMatrix(parentMat, grandParentMat) {
+        if(parentMat && grandParentMat) {
+            mat3.multiply(this._worldTransform, grandParentMat, parentMat);
+        } 
+        const mat = this._localTransform;
+        this.updateBoundingBox();
     }
 }
 

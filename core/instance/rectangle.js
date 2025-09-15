@@ -1,8 +1,8 @@
-import Layer from '../layer/layer';
+import Shape from '../layer/shape';
 import { mat3, vec2 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
 
-class Rectangle extends Layer {
+class Rectangle extends Shape {
     static type = 1;
     w = 0;
     h = 0;
@@ -66,8 +66,8 @@ class Rectangle extends Layer {
             _strokeWidth, _zIndex, _currentMat, _colors,
             _strokeLineDash,
         } = this;
-        const hw = w/2;
-        const hh = h/2;
+        const hw = w/2-_strokeWidth/2;
+        const hh = h/2-_strokeWidth/2;
         let path;
         if(borderRadius > 0) {
             function getPointsOnCorner(x, y, a) {

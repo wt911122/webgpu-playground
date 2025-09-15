@@ -1,10 +1,6 @@
 import { STRIDE_POINT, JOINT_TYPE, ALIGNMENT } from './enums';
 import polylineShader from './polyline-next.wgsl?raw';
-// import roundJointShader from './roundjoint.wgsl?raw';
-import { createBufferWithData } from '../../utils/buffer';
-import PolyLine from '../../instance/polyline';
 import { paddingMat3, copyMat3 } from '../../utils/transform';
-import { vec2 } from 'gl-matrix';
 
 const Location = {
   BARYCENTRIC : 0,
@@ -21,9 +17,11 @@ const stridePoints = 2;
 const strideFloats = 3;
 
 function PolylinePainter() {
-
+    const MAX_OBJECTS = 30000;
     const MAX_SEGMENTS = 100000;
+
     function generateRender(context) {
+        const _objectInfos = [];
         const device = context.device;
         const shapeProgram = device.createShaderModule({
             code: polylineShader,
@@ -47,7 +45,7 @@ function PolylinePainter() {
                 stepMode: 'instance',
                 attributes: [
                     {
-                        format: 'float32x2',
+                        format: 'float32x3',
                         offset: 0,
                         shaderLocation: Location.POINTA,
                     },
@@ -69,7 +67,7 @@ function PolylinePainter() {
                 stepMode: 'instance',
                 attributes: [
                     {
-                        format: 'float32x2',
+                        format: 'float32x3',
                         offset: 0,
                         shaderLocation: Location.POINTB,
                     },
@@ -111,6 +109,7 @@ function PolylinePainter() {
         ]
 
         const bindGroupLayout = device.createBindGroupLayout({
+            label: 'bindGroupLayout',
             entries: [
                 { 
                     binding: 0, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
@@ -123,6 +122,7 @@ function PolylinePainter() {
             ],
         });
         const objBindGroupLayout = device.createBindGroupLayout({
+            label: 'objBindGroupLayout',
             entries: [
                 { 
                     binding: 0, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
@@ -131,6 +131,7 @@ function PolylinePainter() {
             ],
         });
         const pipelineLayout = device.createPipelineLayout({
+            label: 'pipelineLayout',
             bindGroupLayouts: [ bindGroupLayout, objBindGroupLayout ],
         });
 
@@ -171,6 +172,56 @@ function PolylinePainter() {
             },
         })
 
+        const uniformBufferSize = 96; // r, zindex, fill, stroke, transformMat
+       
+        const uniformBufferSpace = roundUp(uniformBufferSize, device.limits.minUniformBufferOffsetAlignment);
+        const uniformBuffer = device.createBuffer({
+            label: 'uniforms',
+            size: uniformBufferSpace * MAX_OBJECTS,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const mappedTransferBuffers = [];
+        const getMappedTransferBuffer = () => {
+            return mappedTransferBuffers.pop() || device.createBuffer({
+                label: 'transfer buffer',
+                size: uniformBufferSpace * MAX_OBJECTS,
+                usage: GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_SRC,
+                mappedAtCreation: true,
+            });
+        };
+    
+        for (let i = 0; i < MAX_OBJECTS; ++i) {
+            const uniformBufferOffset = i * uniformBufferSpace;
+            const bg =  device.createBindGroup({
+                label: 'objectBindingGroup',
+                layout: objBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: uniformBuffer,  offset: uniformBufferOffset, size: uniformBufferSize } },
+                ],
+            });
+            // console.log(uniformBufferOffset, uniformBufferSize)
+            _objectInfos.push(bg)
+        }
+
+        const IndicesBuffer = createUnit16BufferAtCreate(
+            'IndicesBuffer', device,
+            GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            [0,1,2,0,2,3, 4,5,6, 4,6,7, 4,7,8])
+        
+        const VertexNumBuffer = createFloatBufferAtCreate(
+            'VertexNumBuffer', device,
+            GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        
+        const globalBindGroup = device.createBindGroup({
+            label: 'globalBindGroup',
+            layout: bindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: context.worldUniformBuffer } },
+                { binding: 1, resource: { buffer: context.shapeUniformBuffer } },
+            ],
+        });
+
 
         function collecInstanceConfig(instance, config) {
             if(!config.enable) {
@@ -178,18 +229,15 @@ function PolylinePainter() {
             }
             const { 
                 path,
-                _strokeLineDash,
-                _strokeWidth,
                 _strokeAlignment,
-                _zIndex,
-                _colors,
-                mat,
+                _strokeWidth
             } = config.getConfig();
             const { pointsBuffer, travelBuffer } = preparePointsBuffer(
                 path, 
                 JointType.JOINT_MITER,
                 JointType.JOINT_CAP_BUTT, 
                 JointType.CAP_BUTT, _strokeAlignment * _strokeWidth);  
+            
             const lastInstanceCount = config.getPainterConfig('InstanceCount');
             const currInstanceCount = pointsBuffer.length / strideFloats - 3
             config.setPainterConfig('InstanceCount', currInstanceCount);
@@ -221,116 +269,66 @@ function PolylinePainter() {
                 const tvBuffer = config.getBuffer('TravelBuffer');
                 device.queue.writeBuffer(tvBuffer, 0, new Float32Array(travelBuffer));
             }
-            
-          
-            const indicebuffer = config.getBuffer('IndicesBuffer');
-            if(!indicebuffer) {
-                config.addBuffer('IndicesBuffer', createUnit16BufferAtCreate(
-                    'IndicesBuffer', device,
-                    GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-                    [0,1,2,0,2,3, 4,5,6, 4,6,7, 4,7,8]
-                ))
-            }
-            const objArray = [
-                _strokeWidth, _zIndex, _strokeAlignment, 0.0,
-                _colors[4], _colors[5], _colors[6], _colors[7],
-                0.0, 0.0, 0.0, 0.0,
-                ...mat
-            ]
-            if(_strokeLineDash.length) {
-                objArray[8] = _strokeLineDash[0] || 0.0;
-                objArray[9] = _strokeLineDash[1] || 0.0;
-            }
-            const objBuffer = config.getBuffer('objBuffer');
-            if(!objBuffer) {
-                const buffer = createFloatBufferAtCreate(
-                    'objBuffer', device,
-                    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                    objArray);
-                config.addBuffer('objBuffer', buffer)
-                config.addBindGroup('objBufferBindGroup', device.createBindGroup({
-                    label: 'bindingGroup',
-                    layout: objBindGroupLayout,
-                    entries: [
-                        { binding: 0, resource: { buffer } },
-                    ],
-                }))
-            } else {
-                device.queue.writeBuffer(objBuffer, 0, new Float32Array(objArray));
-            }
-            // Object.assign(config, { pointsBuffer, travelBuffer });
-        } 
-        
-        const VertexNumBuffer = createFloatBufferAtCreate(
-            'VertexNumBuffer', device,
-            GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-        
-        const bindGroup = device.createBindGroup({
-            label: 'bindingGroup',
-            layout: bindGroupLayout,
-            entries: [
-                { binding: 0, resource: { buffer: context.worldUniformBuffer } },
-                { binding: 1, resource: { buffer: context.shapeUniformBuffer } },
-            ],
-        });
-
-        let SegmentBuffer;
-        let TravelBuffer;
-        let IndicesBuffer;
-        let InstanceCount = 0;
-        function afterCollectConfig(configs) {
-            // const pointsBuffer = [];
-            // const travelBuffer = [];
-            // // let offset = 0;
-            // configs.forEach(config => {
-            //     pointsBuffer.push(...config.pointsBuffer);
-            //     travelBuffer.push(...config.travelBuffer);
-            // });
-
-            // InstanceCount = pointsBuffer.length / strideFloats - 3;
-            // console.log('InstanceCount', InstanceCount)
-            // if(SegmentBuffer) {
-            //     SegmentBuffer.destroy();
-            // }
-            // SegmentBuffer = createFloatBufferAtCreate(
-            //     'SegmentBuffer', device,
-            //     GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            //     pointsBuffer);
-
-            // if(TravelBuffer) {
-            //     TravelBuffer.destroy();
-            // }
-            // TravelBuffer = createFloatBufferAtCreate(
-            //     'TravelBuffer', device,
-            //     GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            //     travelBuffer);
-
-            // if(IndicesBuffer) {
-            //     IndicesBuffer.destroy();
-            // }
-            // IndicesBuffer = createUnit16BufferAtCreate(
-            //     'IndicesBuffer', device,
-            //     GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-            //     [0,1,2,0,2,3, 4,5,6, 4,6,7, 4,7,8]
-            // );
         }
-
+    
         function beforeRender(encoder, configs, cacheContext) {
-            
+            const numObjects = configs.length;
+            const transferBuffer = getMappedTransferBuffer();
+            const uniformValues = new Float32Array(transferBuffer.getMappedRange());
+
+            const size = (numObjects - 1) * uniformBufferSpace + uniformBufferSize;
+            encoder.copyBufferToBuffer(transferBuffer, 0, uniformBuffer, 0, size);
+            cacheContext.uniformValues = uniformValues;
+            cacheContext.transferBuffer = transferBuffer;
         }
 
         function render(encoder, passEncoder, configs, cacheContext) {
+            const { uniformValues, transferBuffer } = cacheContext;
+            const numObjects = configs.length;
+            for (let i = 0; i < numObjects; ++i) {
+                if(!configs[i].enable) {
+                    continue;
+                }
+                const { 
+                    _strokeLineDash,
+                    _strokeWidth,
+                    _strokeAlignment,
+                    _zIndex,
+                    _colors,
+                    mat,
+                } = configs[i].getConfig();
+                const uniformBufferOffset = i * uniformBufferSpace;
+                const f32Offset = uniformBufferOffset / 4;
+                const materialValue = uniformValues.subarray(
+                    f32Offset, 
+                    f32Offset + 12);
+                const shapeMatrixValue = uniformValues.subarray(
+                    f32Offset + 12, 
+                    f32Offset + 24);
+                materialValue[0] = _strokeWidth;
+                materialValue[1] = _zIndex;
+                materialValue[2] = _strokeAlignment;
+                // stroke
+                materialValue[4] = _colors[4];
+                materialValue[5] = _colors[5];
+                materialValue[6] = _colors[6];
+                materialValue[7] = _colors[7];
+                if(_strokeLineDash.length) {
+                    materialValue[8] = _strokeLineDash[0] || 0.0;
+                    materialValue[9] = _strokeLineDash[1] || 0.0;
+                }
+                copyMat3(shapeMatrixValue, mat);
+            }
+
             passEncoder.setPipeline(renderPipeline);
-            configs.forEach(conf => {
+            configs.forEach((conf, idx) => {
                 if(!conf.enable) {
                     return;
                 }
                 const SegmentBuffer = conf.getBuffer('SegmentBuffer');
                 const TravelBuffer = conf.getBuffer('TravelBuffer');
-                const IndicesBuffer = conf.getBuffer('IndicesBuffer');
                 const InstanceCount = conf.getPainterConfig('InstanceCount');
-                const objBufferBindGroup = conf.getBindGroup('objBufferBindGroup');
+
                 passEncoder.setIndexBuffer(IndicesBuffer, 'uint16');
                 passEncoder.setVertexBuffer(0, SegmentBuffer, vertexBufferOffsets[0]);
                 passEncoder.setVertexBuffer(1, SegmentBuffer, vertexBufferOffsets[1]);
@@ -340,15 +338,19 @@ function PolylinePainter() {
                 passEncoder.setVertexBuffer(5, VertexNumBuffer, 0);
                 passEncoder.setVertexBuffer(6, TravelBuffer, 0);
                 
-                passEncoder.setBindGroup(0, bindGroup);  
-                passEncoder.setBindGroup(1, objBufferBindGroup);  
+                passEncoder.setBindGroup(0, globalBindGroup);  
+                passEncoder.setBindGroup(1, _objectInfos[idx]);  
                 passEncoder.drawIndexed(15, InstanceCount);
             });
-           
+
+            transferBuffer.unmap();
         }
 
         function afterRender(cacheContext) {
-        
+            const transferBuffer = cacheContext.transferBuffer
+            transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+                mappedTransferBuffers.push(transferBuffer);
+            });
         }
 
         return {
@@ -356,19 +358,18 @@ function PolylinePainter() {
             render, 
             afterRender,
             collecInstanceConfig,
-            afterCollectConfig,
         };
     }
 
     return {
         name: 'PolylinePainter',
         generateRender,
-        // Ctor: [PolyLine]
     }
 
 }
 
 export default PolylinePainter;
+
 
 
 const JointType = {
@@ -405,30 +406,66 @@ function preparePointsBuffer(
     jointType, 
     capType, 
     endJoint,
-    strokeAlignment = 0
 ) {
+    if(Array.isArray(points[0])) {
+        const pointsBuffer = [];
+        const travelBuffer = [];
+        points.forEach((p, idx) => {
+            const r = _preparePointsBuffer(
+                p, 
+                jointType, 
+                capType, 
+                endJoint,
+            );
+            pointsBuffer.push(...r.pointsBuffer);
+            if(idx > 0) {
+                travelBuffer.push(0, 0);
+            }
+            travelBuffer.push(...r.travelBuffer);
+        });
+        return { 
+            pointsBuffer,
+            travelBuffer,
+        }
+    } else {
+        return _preparePointsBuffer(points, jointType, 
+                capType, 
+                endJoint,)
+    }
+
+}
+
+function _preparePointsBuffer(
+    incommingpoints, 
+    jointType, 
+    capType, 
+    endJoint,
+) {
+    let lastX;
+    let lastY;
+    const points = [];
+    const inpoints = incommingpoints.slice();
+    while(inpoints.length) {
+        const x = inpoints.shift();
+        const y = inpoints.shift();
+        if(Math.abs(lastX - x) < Number.EPSILON
+            && Math.abs(lastY - y) < Number.EPSILON ) {
+            const l = points.length;
+            points[l-2] = x;
+            points[l-1] = y;
+        } else {
+            points.push(x, y);
+        }
+        lastX = x;
+        lastY = y;
+    }
+
+
     const pointsBuffer = [];
     const travelBuffer = [];
-    // if(strokeAlignment) {
-    //     let v = vec2.create();
-    //     for (let i = 0; i < points.length; i += 2) {
-    //         if(!points[i+3]){
-    //             break;
-    //         }
-    //         const p1 = points.slice(i, i+2);
-    //         const p2 = points.slice(i+2, i+4);
-    //         vec2.subtract(v, p1, p2);
-    //         vec2.normalize(v, v);
-    //         vec2.scale(v, v, strokeAlignment);
-    
-    //         points[i] -= v[1];
-    //         points[i+1] += v[0];
-    //         points[i+2] -= v[1];
-    //         points[i+3] += v[0];
-    //     }
-    // }
     let j = (Math.round(0 / stridePoints) + 1) * strideFloats;
     let dist = 0;
+
 
     for (let i = 0; i < points.length; i += stridePoints) {
       // calc travel

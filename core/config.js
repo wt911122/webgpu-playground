@@ -44,7 +44,7 @@ class InstanceConfig {
     setPainterConfig(key, value) {
         this._painterConfig.set(key, value);
     }
-    getPainterConfit(key) {
+    getPainterConfig(key) {
         return this._painterConfig.get(key);
     }
 

@@ -6,11 +6,7 @@ class Layer extends BaseShape {
     _stack = [];
 
     updateWorldMatrix(parentMat, grandParentMat) {
-        if(parentMat && grandParentMat) {
-            mat3.multiply(this._worldTransform, grandParentMat, parentMat);
-        } 
-        const mat = this._localTransform;
-        this.updateBoundingBox();
+        super.updateWorldMatrix(parentMat, grandParentMat);
         const wmat = this._worldTransform;
         this._stack.forEach(instance => {
             instance.updateWorldMatrix(wmat, parentMat);
@@ -35,6 +31,7 @@ class Layer extends BaseShape {
         addDirtyWork(() => {
             indexRBush.add(instance);
         });
+        addDirtyWork(this.jcanvas._bindMeshAndRender);
     }
 
     insertToStackBefore(instance, anchorNode) {
@@ -55,6 +52,7 @@ class Layer extends BaseShape {
             addDirtyWork(() => {
                 indexRBush.add(instance)
             });
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
 
@@ -68,6 +66,7 @@ class Layer extends BaseShape {
         addDirtyWork(() => {
             indexRBush.remove(instance)
         });
+        addDirtyWork(this.jcanvas._bindMeshAndRender);
     }
 }
 
@@ -75,7 +74,9 @@ export default Layer;
 
 export function traverse(layer, callback) {
     callback(layer);
-    layer._stack.forEach(instance => {
-        traverse(instance, callback)
-    });
+    if(layer._stack) {
+        layer._stack.forEach(instance => {
+            traverse(instance, callback)
+        });
+    };
 }

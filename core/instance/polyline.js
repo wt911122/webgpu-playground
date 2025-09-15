@@ -1,9 +1,9 @@
-import Layer from '../layer/layer';
+import Shape from '../layer/shape';
 import { mat3, vec2 } from 'gl-matrix';
 import { JOINT_TYPE, STRIDE_POINT } from '../shape/polyline/enums';
 import { paddingMat3 } from '../utils/transform';
 
-class PolyLine extends Layer {
+class PolyLine extends Shape {
     _path = [];
     _joints = [];
     _segments = 0;

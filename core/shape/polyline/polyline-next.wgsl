@@ -44,8 +44,8 @@ const dpr:f32 = 2.0;
 
 struct Vertex {
     @location(1) prev: vec2f,
-    @location(2) pointA: vec2f,
-    @location(3) pointB: vec2f,
+    @location(2) pointA: vec3f,
+    @location(3) pointB: vec3f,
     @location(4) next: vec2f,
     @location(5) joint: f32,
     @location(6) num: f32,
@@ -70,9 +70,11 @@ fn crossvec2(v1:vec2f, v2:vec2f) -> f32 {
 
 fn getInnerJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
     let xBasis = pa - p;
+    let len1 = length(xBasis);
     var norm = normalize(vec2f(-xBasis.y, xBasis.x));
 
     let xBasis2 = pb - p;
+    let len2 = length(xBasis2);
     let norm2 = normalize(vec2f(xBasis2.y, -xBasis2.x));
     var bisect = (norm + norm2) / 2.0;
     let prod = bisect.x * norm.y - bisect.y * norm.x;
@@ -81,7 +83,11 @@ fn getInnerJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
         bisect = -bisect;
         norm = -norm;
     } 
-    return  p + bisect / dot(norm, bisect) * LineWidth;
+    let d = bisect / dot(norm, bisect) * LineWidth;
+    if(length(d) > min(len1, len2)){
+        return p + norm * LineWidth;
+    }
+    return  p + d;
 }
 
 fn getOuterJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
@@ -101,12 +107,13 @@ fn getOuterJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
 fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineWidth: f32) -> vec2f {
     var pos: vec2f;
     let xBasis = pa - p;
+    let len1 = length(xBasis);
     let norm = normalize(vec2f(-xBasis.y * fact, xBasis.x * fact));
 
     let xBasis2 = pb - p;
+    let len2 = length(xBasis2);
     let norm2 = normalize(vec2f(xBasis2.y * fact, -xBasis2.x * fact));
     var bisect = (norm + norm2) / 2.0;
-
     let prod = bisect.x * norm.y - bisect.y * norm.x;
     if(pdir == RIGHT_POINT) {
         // 线段右侧的点
@@ -114,7 +121,12 @@ fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineW
             // norm 在 bisect 的左侧
             pos = p + norm * LineWidth;
         } else {
-            pos = p + bisect / dot(norm, bisect) * LineWidth;
+            let d = bisect / dot(norm, bisect) * LineWidth;
+            if(length(d) > min(len1, len2)){
+                pos = p + norm * LineWidth;
+            } else {
+                pos = p + d;
+            }
         }
     }
     
@@ -124,7 +136,12 @@ fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineW
             // norm 在 bisect 的左侧
             pos = p + norm * LineWidth;
         } else {
-            pos = p + bisect / dot(norm, bisect) * LineWidth;
+            let d = bisect / dot(norm, bisect) * LineWidth;
+            if(length(d) > min(len1, len2)){
+                return p + norm * LineWidth;
+            } else {
+                pos = p + d;
+            }
         }
     }
 
@@ -180,8 +197,8 @@ fn vs(
     var output: VertexOutput;
     let zindexTop = shapeUniforms.zindexTop;
     var strokeWidth = obj.strokeWidth;
-    var strokeAlignment = obj.strokeAlignment;
-    let shift = strokeWidth/2 * strokeAlignment;
+    // var strokeAlignment = obj.strokeAlignment;
+    // let shift = strokeWidth/2 * strokeAlignment;
     var LineWidth = strokeWidth/2;//+1.0;
     var bavelLimit =  LineWidth*1.5;
     var joint = vert.joint;
@@ -191,19 +208,25 @@ fn vs(
     // var strokeMiterlimit: f32 = 4.0;
     // var strokeAlignmentFactor = 2.0 * strokeAlignment - 1.0;
     var vertexNum = vert.num;
-   
     
 
     var modelMatrix = obj.shapeMatrix;
     var pos: vec2f;
 
+    var PAjoint = vert.pointA.z;
+    var PBjoint = vert.pointB.z;
+    if(PAjoint == 0 || PBjoint == 0) {
+        output.travel = 0;
+        output.position = vec4f(0,0,0,0);
+        return output;
+    }
 
     /*
     合并实现
     */
     var pointPrev = (modelMatrix * vec3f(vert.prev, 1.0)).xy;
-    var pointA = (modelMatrix * vec3f(vert.pointA, 1.0)).xy;
-    var pointB = (modelMatrix * vec3f(vert.pointB, 1.0)).xy;
+    var pointA = (modelMatrix * vec3f(vert.pointA.xy, 1.0)).xy;
+    var pointB = (modelMatrix * vec3f(vert.pointB.xy, 1.0)).xy;
     var pointNext = (modelMatrix * vec3f(vert.next, 1.0)).xy;
 
     let vecAB = pointA - pointB;
@@ -302,6 +325,9 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     // if(fragData.travel % 2 == 0) {
     //     return  vec4f(0.0, 1.0, 0, 1.0);
     // }
+    if(fragData.travel == 0) {
+        discard;
+    }
     var outputColor = obj.stroke;
     let jointType = fragData.jointType;
     let distance = fragData.distance;

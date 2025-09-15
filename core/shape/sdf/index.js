@@ -216,7 +216,7 @@ function SDFPainter() {
                 materialValue[3] = _strokeWidth;
                 materialValue[4] = borderRadius || 0;
                 materialValue[5] = type;
-                materialValue[6] = _strokeLineDash.length;
+                materialValue[6] = _strokeLineDash?.length || 0;
                 // fill
                 materialValue[8] = _colors[0];
                 materialValue[9] = _colors[1];

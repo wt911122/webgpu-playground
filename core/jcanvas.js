@@ -265,8 +265,10 @@ class JCanvas extends EventTarget {
         })
         
         this._zIndexCounter = zindex + 20;
-        console.log(this._zIndexCounter)
-        this.context.device.queue.writeBuffer(this.context.shapeUniformBuffer, 0, new Float32Array([zindex]));
+        this.context.device.queue.writeBuffer(
+            this.context.shapeUniformBuffer, 
+            0, 
+            new Float32Array([this._zIndexCounter]));
         // console.timeEnd('mesh')
     }
 

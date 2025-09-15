@@ -1,8 +1,8 @@
-import Layer from '../layer/layer';
+import Shape from '../layer/shape';
 import { mat3, vec2 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
 
-class Ellipse extends Layer {
+class Ellipse extends Shape {
     static type = 0;
     w = 0;
     h = 0;
@@ -61,6 +61,15 @@ class Ellipse extends Layer {
             points.push(rx * Math.cos(angle), ry * Math.sin(angle));
         }
         points.push(rx, 0);
+        return {
+            path: points,
+            _strokeLineDash,
+            _strokeWidth,
+            _strokeAlignment: 0.5,
+            _zIndex: _zIndex+0.1, 
+            _colors,
+            mat: paddingMat3(_currentMat)
+        }
     }
     static attachPainter(painter) {
         return [
