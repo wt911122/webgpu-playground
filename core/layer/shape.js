@@ -7,7 +7,6 @@ import { addDirtyWork } from '../dirty-work/dirty-work';
 class BaseShape extends EventTarget {
     _belongs = null;
     _localTransform = mat3.create();
-    _worldTransform = mat3.create();
     _currentMat = mat3.create();
     _zIndex = 0; 
     _strokeWidth = 0;
@@ -35,7 +34,9 @@ class BaseShape extends EventTarget {
 
    
     _anchor = vec2.create();
-    _dirty = true;
+    _materialdirty = true;
+    _geodirty = true;
+    
 
     constructor(configs = {}) {
         super();
@@ -54,34 +55,59 @@ class BaseShape extends EventTarget {
     set fill(value) {
         const c = d3.color(value || 'transparent');
         this._fill = c;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this._bindFlushColor)
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
     set stroke(value) {
         const c = d3.color(value || 'transparent');
         this._stroke = c;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this._bindFlushColor)
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
     set strokeLineDash(value) {
         this._strokeLineDash = value || [];
         this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
 
     set shadowColor(value) {
         const c = d3.color(value || 'transparent');
         this._shadowColor = c;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this._bindFlushColor)
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
     set shadowOffsetX(value) {
         this._shadowOffsetX = value || 0;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
     set shadowOffsetY(value) {
         this._shadowOffsetY = value || 0;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
     set shadowBlur(value) {
         this._shadowBlur = value || 0;
-        this.markDirty();
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
     }
 
     get fill() {
@@ -95,12 +121,12 @@ class BaseShape extends EventTarget {
         return this._shadowColor.toString();
     }
 
-    get localTransformMatrix() {
-        return this._transform.getMatrix();
+    get matrix() {
+        return this._currentMat;
     }
 
-    get worldTransformMatrix() {
-        return this._worldTransform;
+    get parent() {
+        return this._belongs;
     }
 
     flushColor() {
@@ -122,12 +148,21 @@ class BaseShape extends EventTarget {
         colors[11] = shadowColor.opacity;
     }
 
-    markDirty() {
+    markGeoDirty() {
         if(this.jcanvas) {
-            this._dirty = true;
-            addDirtyWork(this._bindFlushColor)
+            this._geodirty = true;
             addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
+    }
+    markMaterialDrity() {
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
+    }
+
+    addDirtyWork(callback) {
+        addDirtyWork(callback)
     }
 
     updateBoundingBox() { }
@@ -136,12 +171,15 @@ class BaseShape extends EventTarget {
         return this._boundingbox.bounding;
     }
 
-    updateWorldMatrix(parentMat, grandParentMat) {
-        if(parentMat && grandParentMat) {
-            mat3.multiply(this._worldTransform, grandParentMat, parentMat);
+    updateWorldMatrix(parentMat) {
+        if(parentMat) {
+            mat3.multiply(this._currentMat, this._localTransform, parentMat);
         } 
-        const mat = this._localTransform;
+        // const mat = this._localTransform;
         this.updateBoundingBox();
+    }
+    checkHit() {
+        return true;
     }
 }
 

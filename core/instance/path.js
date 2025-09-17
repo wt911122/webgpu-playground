@@ -12,11 +12,22 @@ class Path extends Shape {
     }
 
     set path(value) {
-        this._path = parse(value);
-        this.markDirty();
+        const { path, box } = parse(value);
+        this._path = path;
+        this._contentBox = box;
+        this.markGeoDirty();
     }
     get path() {
         return this._path;
+    }
+
+    updateBoundingBox() {
+        const { LT, RB } = this._boundingbox;
+        const [a, b, c, d] = this._contentBox;
+        vec2.transformMat3(LT, [a, b], this._currentMat)
+        vec2.transformMat3(RB, [c, d], this._currentMat);
+        const indexRBush = this.jcanvas.indexRBush;
+        indexRBush.refresh(this);
     }
 
     getMeshConfig() {

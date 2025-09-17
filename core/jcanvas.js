@@ -244,17 +244,15 @@ class JCanvas extends EventTarget {
                 //     throw `no painter for ${instance.constructor}`
                 // }
                
-                if(instance._dirty) {
+                if(instance._materialdirty || instance._geodirty) {
                     this._painterRegistry.iterate(painter => {
                         const dirty = painter.collectConfig(instance);
                         if(dirty) {
                             painter._dirty = true;
                         }
                     })
-                    instance._dirty = false;
-                    // painter.collectConfig(instance);
-                    // instance._dirty = false;
-                    // painter._dirty = true;
+                    instance._materialdirty = false;
+                    instance._geodirty = false;
                 }
             }
         })

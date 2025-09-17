@@ -132,22 +132,20 @@ function MeshPainter() {
             const indicebuffer = config.getBuffer('IndicesBuffer');
             if(indicebuffer) {
                 indicebuffer.destroy();
-            } else {
-                config.addBuffer('IndicesBuffer', createUnit16BufferAtCreate(
-                    'SegmentBuffer', device,
-                    GPUBufferUsage.INDEX,
-                    indices))
-            }
+            } 
+            config.addBuffer('IndicesBuffer', createUnit16BufferAtCreate(
+                'SegmentBuffer', device,
+                GPUBufferUsage.INDEX,
+                indices))
             
             const pointsbuffer = config.getBuffer('VertexBuffer');
             if(pointsbuffer) {
                 pointsbuffer.destroy();
-            } else {
-                config.addBuffer('VertexBuffer', createFloatBufferAtCreate(
-                    'SegmentBuffer', device,
-                    GPUBufferUsage.VERTEX,
-                    vertices))
             }
+            config.addBuffer('VertexBuffer', createFloatBufferAtCreate(
+                'SegmentBuffer', device,
+                GPUBufferUsage.VERTEX,
+                vertices))
         }
 
         function beforeRender(encoder, configs, cacheContext) {

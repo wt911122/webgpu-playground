@@ -5,12 +5,15 @@ import { addDirtyWork } from '../dirty-work/dirty-work';
 class Layer extends BaseShape {
     _stack = [];
 
-    updateWorldMatrix(parentMat, grandParentMat) {
-        super.updateWorldMatrix(parentMat, grandParentMat);
-        const wmat = this._worldTransform;
+    updateWorldMatrix(parentMat) {
+        if(parentMat) {
+            mat3.multiply(this._currentMat, this._localTransform, parentMat);
+        } 
+        const wmat = this._currentMat;
         this._stack.forEach(instance => {
-            instance.updateWorldMatrix(wmat, parentMat);
+            instance.updateWorldMatrix(wmat);
         });
+        this.updateBoundingBox();
     }
 
     // calculateDownBoundingbox(mtx) {
@@ -30,8 +33,8 @@ class Layer extends BaseShape {
 
         addDirtyWork(() => {
             indexRBush.add(instance);
-        });
-        addDirtyWork(this.jcanvas._bindMeshAndRender);
+        })
+        this.meshAndRender();
     }
 
     insertToStackBefore(instance, anchorNode) {
@@ -52,7 +55,7 @@ class Layer extends BaseShape {
             addDirtyWork(() => {
                 indexRBush.add(instance)
             });
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.meshAndRender();
         }
     }
 
@@ -66,7 +69,21 @@ class Layer extends BaseShape {
         addDirtyWork(() => {
             indexRBush.remove(instance)
         });
-        addDirtyWork(this.jcanvas._bindMeshAndRender);
+        this.meshAndRender();
+    }
+
+    meshAndRender() {
+        if(this.jcanvas._bindMeshAndRender) {
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
+    }
+
+    markMaterialDrity() {
+        if(this.jcanvas) {
+            this._stack.forEach(instance => {
+                instance.markMaterialDrity();
+            });
+        }
     }
 }
 

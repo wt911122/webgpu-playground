@@ -19,12 +19,12 @@ class PolyLine extends Shape {
     }
 
     updateBoundingBox() {
-        mat3.multiply(this._currentMat, this._worldTransform, this._localTransform)
+        
     }
 
     set path(value) {
         this._path = value;
-        this.markDirty();
+        this.markGeoDirty();
     }
 
     getConfig() {

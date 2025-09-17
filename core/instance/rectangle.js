@@ -21,8 +21,6 @@ class Rectangle extends Shape {
         const { w, h } = this;
 
         const { LT, RB } = this._boundingbox;
-        mat3.multiply(this._currentMat, this._worldTransform, this._localTransform)
-
         vec2.transformMat3(LT, [-w/2, -h/2], this._currentMat)
         vec2.transformMat3(RB, [w/2, h/2], this._currentMat);
         const indexRBush = this.jcanvas.indexRBush;

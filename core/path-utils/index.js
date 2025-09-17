@@ -7,6 +7,7 @@ function _parsePath(d) {
 }
 
 export function parse(d) {
+    const box = [Infinity, Infinity, -Infinity, -Infinity];
     const subpath = [];
     let currentPoint;
 
@@ -17,122 +18,140 @@ export function parse(d) {
         const code = command.code;
         switch (code) {
             case 'M':
-                parseM(command, subpath, control);
+                parseM(command, subpath, control, box);
                 break;
             case 'L':
             case 'V':
             case 'H':
-                parseL(command, subpath, control);
+                parseL(command, subpath, control, box);
                 break;
             case 'C':
-                parseC(command, subpath, control);
+                parseC(command, subpath, control, box);
                 break;
             case 'S':
-                parseS(command, subpath, control);
+                parseS(command, subpath, control, box);
                 break;
             case 'Q':
-                parseQ(command, subpath, control);
+                parseQ(command, subpath, control, box);
                 break;
             case 'T':
-                parseT(command, subpath, control);
+                parseT(command, subpath, control, box);
                 break;
             case 'A':
-                parseA(command, subpath, control);
+                parseA(command, subpath, control, box);
                 break;
             case 'Z':
-                parseZ(command, subpath, control);
+                parseZ(command, subpath, control, box);
                 subpath.closePath = true;
                 break;
         }
+
     })
     // console.log(d, subpath);
-    return subpath;
+    return { path: subpath, box };
 }
+function calcBox(box, x, y) {
+    box[0] = Math.min(box[0], x);
+    box[2] = Math.max(box[2], x);
+    box[1] = Math.min(box[1], y);
+    box[3] = Math.max(box[3], y);
+}
+
 const DIVISIONS = 12;
 const ARC_DIVISIONS = 24;
 function getReflection(a, b) {
   return a - (b - a);
 }
-function parseM(command, subpath, control) {
+function parseM(command, subpath, control, box) {
     const { x, y } = command;
     subpath.push([x, y])
     control[0] = x;
     control[1] = y;
+    calcBox(box, x, y);
 }
-function parseZ(command, subpath, control) {
+function parseZ(command, subpath, control, box) {
     // const firstpath = subpath[0];
     const currpath = subpath[subpath.length-1];
     currpath.push(currpath[0], currpath[1]);
 }
 
-function parseL(command, subpath, control) {
+function parseL(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     const { x, y } = command;
     currpath.push(x, y);
     control[0] = x;
     control[1] = y;
+    calcBox(box, x, y);
 }
-function parseC(command, subpath, control) {
+function parseC(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     const { x0, y0, x1, y1, x2, y2, x, y } = command;
     for (let d = 0; d <= DIVISIONS; d++) {
         const t = d / DIVISIONS;
-        currpath.push(
-            CubicBezier(t, x0, x1, x2, x), 
-            CubicBezier(t, y0, y1, y2, y));
+        const a = CubicBezier(t, x0, x1, x2, x);
+        const b = CubicBezier(t, y0, y1, y2, y);
+        currpath.push(a, b);
+        calcBox(box, a, b);
     }
     currpath.push(x, y);
     control[0] = x2;
     control[1] = y2;
+    calcBox(box, x, y);
 }
-function parseS(command, subpath, control) {
+function parseS(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     const { x0, y0, x2, y2, x, y } = command;
     const [x1, y1] = control;
    
     for (let d = 0; d <= DIVISIONS; d++) {
         const t = d / DIVISIONS;
-        currpath.push(
-            CubicBezier(t, x0, getReflection(x0, x1), x2, x), 
-            CubicBezier(t, y0, getReflection(y0, y1), y2, y));
+        const a = CubicBezier(t, x0, getReflection(x0, x1), x2, x);
+        const b = CubicBezier(t, y0, getReflection(y0, y1), y2, y);
+        currpath.push(a, b);
+        calcBox(box, a, b);
     }
     currpath.push(x, y);
     control[0] = x2;
     control[1] = y2;
+    calcBox(box, x, y);
 }
 
-function parseQ(command, subpath, control) {
+function parseQ(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     const { x0, y0, x1, y1, x, y } = command;
     for (let d = 0; d <= DIVISIONS; d++) {
         const t = d / DIVISIONS;
-        currpath.push(
-            QuadraticBezier(t, x0, x1, x), 
-            QuadraticBezier(t, y0, y1, y));
+        const a = QuadraticBezier(t, x0, x1, x);
+        const b = QuadraticBezier(t, y0, y1, y);
+        currpath.push(a, b);
+        calcBox(box, a, b);
     }
     currpath.push(x, y);
     control[0] = x1;
     control[1] = y1;
+    calcBox(box, x, y);
 }
-function parseT(command, subpath, control) {
+function parseT(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     const { x0, y0, x, y } = command;
     const [x1, y1] = control;
     for (let d = 0; d <= DIVISIONS; d++) {
         const t = d / DIVISIONS;
-        currpath.push(
-            QuadraticBezier(t, x0, getReflection(x0, x1), x), 
-            QuadraticBezier(t, y0, getReflection(y0, y1), y));
+        const a = QuadraticBezier(t, x0, getReflection(x0, x1), x);
+        const b = QuadraticBezier(t, y0, getReflection(y0, y1), y);
+        currpath.push(a, b);
+        calcBox(box, a, b);
     }
     currpath.push(x, y);
+    calcBox(box, x, y);
 }
 const twoPi = Math.PI * 2;
-function parseA(command, subpath, control) {
+function parseA(command, subpath, control, box) {
     const currpath = subpath[subpath.length-1];
     let rx = command.rx;
     let ry = command.ry;
     if ( rx == 0 || ry == 0 ) {
-        parseL(command, subpath, control)
+        parseL(command, subpath, control, box)
         return;
     }
     const { x0, y0, largeArc, sweep, x, y } = command; 
@@ -229,11 +248,13 @@ function parseA(command, subpath, control) {
             py = tx * sin + ty * cos + cy;
         }
         currpath.push(px, py);
+        calcBox(box, px, py);
     }
     currpath.push(x, y);
 
     control[0] = x;
     control[1] = y;
+    calcBox(box, x, y);
 }
 
 function svgAngle( ux, uy, vx, vy ) {

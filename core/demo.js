@@ -10,8 +10,10 @@ import EllipseCtor from './instance/ellipse';
 import RectangleCtor from './instance/rectangle';
 import PolyLineCtor from './instance/polyline';
 import PathCtor from './instance/path';
+import TextCtor from './instance/Text';
 
 import { vec2, mat3 } from 'gl-matrix';
+import opentype from 'opentype.js';
 
 
 (async function () {
@@ -28,6 +30,7 @@ import { vec2, mat3 } from 'gl-matrix';
     const Rectangle = jc.useShape(RectangleCtor);
     const Path = jc.useShape(PathCtor);
     const PolyLine = jc.useShape(PolyLineCtor);
+    const Text = jc.useShape(TextCtor);
 
     // painter的顺序和堆叠顺序需要一致
     // const gridPainter = jc.use(GridPainter);
@@ -103,20 +106,20 @@ import { vec2, mat3 } from 'gl-matrix';
     // stage.addToStack(path2);
 
     
-    // const rect = Rectangle({
-    //     cx: 220,
-    //     cy: 300,
-    //     width: 180,
-    //     height: 100,
-    //     fill: 'rgb(0, 255, 255)',
-    //     stroke: 'black',
-    //     storkeWidth: 2,
-    //     borderRadius: 2,
-    //     strokeLineDash: [1, 10]
-    // });
-    // stage.addToStack(rect);
-    // rect.addEventListener('mouseenter', onMouseEnter)
-    // rect.addEventListener('mouseleave', onMouseLeave)
+    const rect = Rectangle({
+        cx: 220,
+        cy: 300,
+        width: 180,
+        height: 100,
+        fill: 'rgb(0, 255, 255)',
+        stroke: 'black',
+        storkeWidth: 2,
+        borderRadius: 2,
+        strokeLineDash: [1, 10]
+    });
+    stage.addToStack(rect);
+    rect.addEventListener('mouseenter', onMouseEnter)
+    rect.addEventListener('mouseleave', onMouseLeave)
 
 
     // const rect2 = Rectangle({
@@ -281,6 +284,16 @@ import { vec2, mat3 } from 'gl-matrix';
         } 
     })
 
+    function checkTarget(target) {
+        let t = target;
+        while(t.parent) {
+            if(t.parent.lock) {
+                return t.parent;
+            }
+            t = t.parent;
+        }
+        return target;
+    }
     function _dragdrop() {
         const context = {
             target: null,
@@ -291,11 +304,12 @@ import { vec2, mat3 } from 'gl-matrix';
         };
         dragdropBehavior({
             dragStart(x, y) {
-                const target = jc.lockTarget(x, y);
-                if(target) {
+                const lockedTarget = jc.lockTarget(x, y);
+                if(lockedTarget) {
+                    const target = checkTarget(lockedTarget);
                     context.target = target;
                     context.targetLocalMtx = mat3.clone(target._localTransform)
-                    mat3.invert(context.targetWorldMtxInv, target._worldTransform)
+                    mat3.invert(context.targetWorldMtxInv, target.parent.matrix)
                     context.pos = vec2.clone(jc._mousevec)
                     return true;
                 }
@@ -307,8 +321,8 @@ import { vec2, mat3 } from 'gl-matrix';
                 vec2.subtract(vec, vec, pos);
                 vec2.transformMat3(vec, vec, targetWorldMtxInv);
                 mat3.translate(locationMtx, targetLocalMtx, vec);
-                target.updateBoundingBox();
-                target.markDirty();
+                target.updateWorldMatrix(target.parent.matrix);
+                target.markMaterialDrity();
                 // console.log(locationMtx[6], locationMtx[7]);
             },
             dragEnd() {
@@ -382,11 +396,19 @@ import { vec2, mat3 } from 'gl-matrix';
 
         const $svg = $container.children[0];
 
+        const group = Group({
+            x: 200,
+            y: 0,
+            lock: true,
+        });
         for (const child of $svg.children) {
             const attrs = fromSVGElement(child);
             console.log(attrs);
-            deserializeNode(attrs, stage);
+            deserializeNode(attrs, group);
         }
+
+        stage.addToStack(group);
+        group.updateWorldMatrix(stage.matrix)
     });
 
     function deserializeNode(data, parent) {
@@ -418,6 +440,24 @@ import { vec2, mat3 } from 'gl-matrix';
         } 
         
     }
+
+    fetch('/assets/PingFangSC-main/ttf/PingFangSC-Regular.ttf')
+        .then(async res => {
+            const buffer = await res.arrayBuffer();
+            const font = opentype.parse(buffer);
+            const para = Text({
+                content: '旺旺仙贝',
+                x: 150,
+                y: 200,
+                fill: 'black',
+                fontSize: 24,
+                font,
+            })
+            stage.addToStack(para)
+            stage.updateWorldMatrix();
+            para.addEventListener('mouseenter', onMouseEnter)
+            para.addEventListener('mouseleave', onMouseLeave)
+        })
 
     function kebabToCamelCase(str) {
         return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());

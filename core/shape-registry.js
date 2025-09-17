@@ -75,7 +75,9 @@ class ShaperPainter {
         } else {
            instanceConfig.updateConfig();
         }
-        this._collectInstanceConfig(instance, instanceConfig);
+        if(instance._geodirty) {
+            this._collectInstanceConfig(instance, instanceConfig);
+        }
         // console.log(config)
         // this._configLength = config.length;
         return true;
