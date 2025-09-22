@@ -24,9 +24,11 @@ class InstanceConfig {
     }
 
     _checkState() {
+        let enable = true;
         if(this._condition) {
-            this._enable = this._condition(this._instance);
+            enable = this._condition(this._instance);
         }
+        this._enable = this._instance.visible && enable;
         return this._enable;
     }
 

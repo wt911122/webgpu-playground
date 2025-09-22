@@ -4,25 +4,15 @@ class IndexRBush {
     _rtree = new RBush();
 
     add(shape) {
-        const [minX, minY, maxX, maxY] = shape.getBoundingBox();
-        const item = {
-            minX, minY, maxX, maxY,
-            shape,
-        }
-        this._rtree.insert(item);
-        return item;
+        this.remove(shape);
+        this._rtree.insert(shape.getBoundingBoxForRbush());
     }
 
     remove(shape) {
-        this._rtree.remove({
-            shape,
-        }, (a, b) => {
-            return a.shape === b.shape;
-        })
+        this._rtree.remove(shape.getBoundingBoxForRbush())
     }
 
     refresh(shape) {
-        this.remove(shape);
         this.add(shape);   
     }
     

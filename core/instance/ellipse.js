@@ -12,8 +12,17 @@ class Ellipse extends Shape {
         const { cx, cy, width, height, r } = configs;
         this.w = width || r*2;
         this.h = height || r*2;
-        mat3.translate(this._localTransform, this._localTransform, [cx, cy]);
+        this.setTranslate(cx, cy);
     }
+
+    // setAnchor(x, y) {
+    //     this.updateLocalTransform(x, y);
+    // }
+
+    // updateLocalTransform(x, y) {
+    //     mat3.identity(this._localTransform);
+    //     mat3.translate(this._localTransform, this._localTransform, [x, y]);
+    // }
 
     updateBoundingBox() {
         const { w, h } = this;
@@ -34,6 +43,43 @@ class Ellipse extends Shape {
         // const dist = Math.hypot(mouseVec[0] - _anchor[0], mouseVec[1] - _hitvec[1]);
         return isPointInEllipse(mouseVec[0], mouseVec[1], _anchor[0], _anchor[1], this.w/2, this.h/2);
     }
+
+    editBoundaryStart(context) {
+        Object.assign(context, {
+            w: this.w,
+            h: this.h,
+            translate: vec2.clone(this._translate),
+        })
+    }
+    editBoundary(context) {
+        const { cp, vecf, vect, w, h, translate } = context;
+        const deltaX = vect[0] - vecf[0];
+        const deltaY = vect[1] - vecf[1];
+       
+        switch(cp) {
+            case 'lt':
+                this.w = Math.abs(w - deltaX);
+                this.h = Math.abs(h - deltaY);
+                break;
+            case 'rt':
+                this.w = Math.abs(w + deltaX);
+                this.h = Math.abs(h - deltaY);
+                
+                break;
+            case 'lb':
+                this.w = Math.abs(w - deltaX);
+                this.h = Math.abs(h + deltaY);
+                break;
+            case 'rb':
+                this.w = Math.abs(w + deltaX);
+                this.h = Math.abs(h + deltaY);
+                break;
+        }
+        this.setTranslate(translate[0] + deltaX/2, translate[1] + deltaY/2)
+        this.updateWorldMatrix(this.parent.matrix)
+        this.markGeoDirty();
+    }
+
 
     getConfig() {
         const { 

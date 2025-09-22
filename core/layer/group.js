@@ -9,7 +9,7 @@ class Group extends Layer {
         super(configs);
         const { x = 0, y = 0, lock } = configs;
         this.lock = !!lock;
-        mat3.translate(this._localTransform, this._localTransform, [x, y]);
+        this.setTranslate(x, y);
     }
 
     updateBoundingBox() {
@@ -34,6 +34,52 @@ class Group extends Layer {
         //     return instance.checkHit(mouseVec);
         // });
         // return !!q;
+    }
+
+    editBoundaryStart(context) {
+        const { LT, RB } = this._boundingbox;
+        Object.assign(context, {
+            w: RB[0] - LT[0], 
+            h: RB[1] - LT[1], 
+            translate: vec2.clone(this._translate),
+            scale: vec2.clone(this._scale),
+        })
+    }
+
+    editBoundary(context) {
+        const { cp, vecf, vect, w, h, translate, scale } = context;
+        const deltaX = vect[0] - vecf[0];
+        const deltaY = vect[1] - vecf[1];
+        let nextWidth;
+        let nextHeight;
+        switch(cp) {
+            case 'lt':
+                nextWidth = Math.abs(w - deltaX);
+                nextHeight = Math.abs(h - deltaY);
+                this.setTranslate(translate[0] + deltaX, translate[1] + deltaY)
+                break;
+            case 'rt':
+                nextWidth = Math.abs(w + deltaX);
+                nextHeight = Math.abs(h - deltaY);
+                this.setTranslate(translate[0], translate[1] + deltaY)
+                break;
+            case 'lb':
+                nextWidth = Math.abs(w - deltaX);
+                nextHeight = Math.abs(h + deltaY);
+                this.setTranslate(translate[0] + deltaX, translate[1])
+                break;
+            case 'rb':
+                nextWidth = Math.abs(w + deltaX);
+                nextHeight = Math.abs(h + deltaY);
+                break;
+        }
+        this.setScale(scale[0]*nextWidth/w, scale[1]*nextHeight/h)
+        
+        this.updateWorldMatrix(this.parent.matrix)
+        this.markMaterialDrity();
+    }
+    editBoundaryEnd() {
+
     }
 
     static attachPainter() {

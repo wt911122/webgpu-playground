@@ -1,7 +1,8 @@
 import { vec2, mat3 } from 'gl-matrix';
 
 import Group from './layer/group';
-import { traverse } from './layer/layer';
+import Stage from './layer/stage';
+import Layer, { traverse } from './layer/layer';
 import { Camera } from './utils/camera';
 import { createCanvas } from './utils/canvas';
 import { Box } from './utils/box';
@@ -9,14 +10,33 @@ import IndexRBush from './utils/indexRBush.js';
 import { paddingMat3 } from './utils/transform';
 import PainterRegistry from './shape-registry';
 import { MatrixStack } from './utils/transform';
+import { JEvent } from './event/event-target'
 
-class JCanvas extends EventTarget {
-    _stage = new Group();
+import SDFPainter from './shape/sdf';
+import GridPainter from './shape/grid';
+import PolylinePainter from './shape/polyline/painter-new.js';
+import MeshPainter from './shape/mesh';
+
+import GroupCtor from './layer/group';
+import EllipseCtor from './instance/ellipse';
+import RectangleCtor from './instance/rectangle';
+import PolyLineCtor from './instance/polyline';
+import PathCtor from './instance/path';
+import TextCtor from './instance/Text';
+
+import InfraRegistry from './infra/infra-registry';
+import EventResolver from './event/event-resolver';
+import SelectBox from './infra/select-box';
+
+class JCanvas {
+    _stage = new Stage();
     _viewport = new Box();
     _lockBox = new Box();
     _indexRBush = new IndexRBush();
 
     _painterRegistry = new PainterRegistry();
+    _shapeRegistry = new Map();
+    _infraRegistry = new InfraRegistry();
 
     _mousevec = vec2.create();
 
@@ -32,12 +52,30 @@ class JCanvas extends EventTarget {
         return this.context?.canvas;
     }
 
-    constructor() {
-        super();
-        this._stage.jcanvas = this;
+    get currentMouseLocation() {
+        return this._mousevec;
     }
 
-    useShape(ctor) {
+    constructor() {
+        this._stage.jcanvas = this;
+        this.usePainter(GridPainter);
+        this.usePainter(SDFPainter);
+        this.usePainter(MeshPainter);
+        this.usePainter(PolylinePainter);
+
+       
+        this.useShape('Group', GroupCtor);
+        this.useShape('Ellipse', EllipseCtor);
+        this.useShape('Rectangle', RectangleCtor);
+        this.useShape('Path', PathCtor);
+        this.useShape('PolyLine', PolyLineCtor);
+        this.useShape('Text', TextCtor);
+
+        this.useInfra(EventResolver);
+        this.useInfra(SelectBox);
+    }
+
+    useShape(name, ctor) {
         const pipeline = ctor.attachPainter();
         const total = pipeline.length;
         pipeline.forEach((painterDesc, idx) => {
@@ -47,26 +85,26 @@ class JCanvas extends EventTarget {
 
             this._painterRegistry.usePainter(ctor, painter, configGetter, condition, idx, total)
         });
-        return (...argus) => {
+        const creator = (...argus) => {
             const q = new ctor(...argus)
             q.jcanvas = this;
             return q;
-        }
+        };
+        this._shapeRegistry.set(name, creator)
+        return creator;
+    }
+
+    getShapeCtor(name) {
+        return this._shapeRegistry.get(name);
     }
 
     usePainter(painter) {
         const shapePainter = this._painterRegistry.regist(painter());
         return shapePainter;
-        // return {
-        //     painter: shapePainter,
-        //     Ctors: meta.Ctor.map(ctor => {
-        //         return (...argus) => {
-        //             const q = new ctor(...argus)
-        //             q.jcanvas = this;
-        //             return q;
-        //         }
-        //     }),
-        // }
+    }
+
+    useInfra(infra) {
+        this._infraRegistry.regist(infra())
     }
 
     async $mount(dom) {
@@ -117,6 +155,7 @@ class JCanvas extends EventTarget {
         this.cacheConfigs();
         this.initPipeline();
         this.render = createScheduleRender(this._render.bind(this));
+        this._infraRegistry.setup(this.context);
     }
 
     initPipeline() {
@@ -163,11 +202,11 @@ class JCanvas extends EventTarget {
         device.queue.writeBuffer(worldUniformBuffer, 0, buffer);
     }
 
-    calculateDownBoundingbox() {
-        this._stage.calculateDownBoundingbox(mat3.create())
-    }
+    // calculateDownBoundingbox() {
+    //     this._stage.calculateDownBoundingbox(mat3.create())
+    // }
 
-    lockTarget(offsetX, offsetY) {
+    lockTarget(offsetX, offsetY, ignoreTarget) {
         // console.time('lockTarget')
         const _lockBox = this._lockBox;
         const viewProjectionMatrixInv = this.context.camera.getViewProjectMatrixInv();
@@ -190,6 +229,12 @@ class JCanvas extends EventTarget {
             let shape;
             for(let i=0;i<shapes.length;i++) {
                 shape = shapes[i];
+                if(!shape.visible) {
+                    continue;
+                }
+                if(ignoreTarget && ignoreTarget.includes(shape)) {
+                    continue;
+                }
                 const r = shape.checkHit(mouseVec);
                 if(r) {
                     return shape;
@@ -204,7 +249,7 @@ class JCanvas extends EventTarget {
     pan(deltaX, deltaY) {
         this.context.camera.pan(deltaX, deltaY);
         this.updateViewport();
-        this.dispatchEvent(new CustomEvent('zoompan'));
+        // this.dispatchEvent(new CustomEvent('zoompan'));
         this.render();
     }
     
@@ -228,7 +273,9 @@ class JCanvas extends EventTarget {
 
         camera.pan(preZoomX - postZoomX, preZoomY - postZoomY, true);
         this.updateViewport();
-        this.dispatchEvent(new CustomEvent('zoompan'));
+        const event = new JEvent('zoom', { zoom: newZoom });
+        event.targetPhase();
+        this.stage.dispatchEvent(event);
         this.render();
     }
 
@@ -236,9 +283,11 @@ class JCanvas extends EventTarget {
         const shapeRegistry = this._painterRegistry;
         let zindex = 20;
         // console.time('mesh')
-        traverse(this._stage, (instance) => {
+        
+        this._stage.traverse((instance) => {
             if(instance.renderable) {
                 instance._zIndex = zindex++;
+
                 // const painter = this._painterRegistry.get(instance.constructor);
                 // if(!painter) {
                 //     throw `no painter for ${instance.constructor}`
@@ -276,7 +325,6 @@ class JCanvas extends EventTarget {
     }
 
     _render() {
-        this.dispatchEvent(new CustomEvent('beforeRender'))
         this.updateWorldUniform();
         // const shapes = this._culling.inBound(this.context.viewport.bounding)
         const device = this.context.device;
@@ -294,7 +342,6 @@ class JCanvas extends EventTarget {
         this._painterRegistry.iterate((painter) => {
             painter.afterRender()
         })
-        this.dispatchEvent(new CustomEvent('afterRender'))
     }
 
     doCollection(instance, layerTransformer, renderCounter) {

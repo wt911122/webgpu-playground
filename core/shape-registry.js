@@ -95,6 +95,7 @@ class ShaperPainter {
     }
 
     afterCollectConfig() {
+        // this.configs.sort((a, b) => a._instance._zIndex - b._instance._zIndex)
         this._afterCollectConfig();
     }
 
@@ -137,7 +138,10 @@ class PainterRegistry {
 
     usePainter(ctor, painterName, configFnName, condition, idx, total) {
         const painter = this._painters.get(painterName);
-        painter.setConfigFnMeta(ctor, configFnName, condition, idx, total);
+        if(painter) {
+            painter.setConfigFnMeta(ctor, configFnName, condition, idx, total);
+        }
+       
     }
 }
 

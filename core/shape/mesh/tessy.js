@@ -1,4 +1,4 @@
-/*global libtess */
+// /*global libtess */
 /* exported triangulate */
 import libtess from 'libtess';
 var tessy = (function initTesselator() {
@@ -62,7 +62,7 @@ export function triangulate(contours) {
     var startTime = Date.now();
     tessy.gluTessEndPolygon();
     var endTime = Date.now();
-    console.log('tesselation time: ' + (endTime - startTime) + 'ms');
+    // console.log('tesselation time: ' + (endTime - startTime) + 'ms');
 
     return triangleVerts;
 }

@@ -5,16 +5,22 @@ import { parse } from '../path-utils';
 
 class Path extends Shape {
     _path = [];
-
+    _contentBox = [0,0,0,0]
     constructor(configs) {
         super(configs);
         this.path = configs.path;
     }
 
     set path(value) {
-        const { path, box } = parse(value);
-        this._path = path;
-        this._contentBox = box;
+        if(value) {
+            const { path, box } = parse(value);
+            this._path = path;
+            this._contentBox = box;
+        } else {
+            this._path = [];
+            this._contentBox = [0,0,0,0];
+        }
+
         this.markGeoDirty();
     }
     get path() {
@@ -63,12 +69,12 @@ class Path extends Shape {
         return [
             {
                 ctor: Path,
-                condition: (instance) => instance.path.closePath && instance.fill.opacity !== 0,
+                condition: (instance) => instance.path.closePath && instance._fill.opacity !== 0,
                 painter: 'MeshPainter',
                 configGetter: 'getMeshConfig'
             }, {
                 ctor: Path,
-                condition: (instance) => instance._strokeWidth > 0 && instance.stroke.opacity !== 0 ,
+                condition: (instance) => instance._strokeWidth > 0 && instance._stroke.opacity !== 0 ,
                 painter: 'PolylinePainter',
                 configGetter: 'getPolylineConfig'
             }

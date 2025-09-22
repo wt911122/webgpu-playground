@@ -196,11 +196,15 @@ function SDFPainter() {
 
             let shadowObjecs = [];
             for (let i = 0; i < numObjects; ++i) {
+                const config = configs[i];
+                if(!config.enable) {
+                    continue;
+                }
                 const {
                     type, w, h, borderRadius, _strokeWidth, _zIndex, mat,
                     _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
                     _strokeLineDash,
-                } = configs[i].getConfig();
+                } = config.getConfig();
                 const uniformBufferOffset = i * uniformBufferSpace;
                 const f32Offset = uniformBufferOffset / 4;
                 const materialValue = uniformValues.subarray(
@@ -248,6 +252,10 @@ function SDFPainter() {
             passEncoder.setVertexBuffer(0, vertexBuffer);
             passEncoder.setIndexBuffer(indicesBuffer, 'uint16');
             for (let i = 0; i < numObjects; ++i) {
+                const config = configs[i];
+                if(!config.enable) {
+                    continue;
+                }
                 const {
                     bindGroup,
                 } = _objectInfos[i];

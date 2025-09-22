@@ -84,6 +84,9 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     } else if(shapeType < 1.5) {
         distance = sdRectangle(v_FragCoord, v_Radius, borderRadius);
     }
+    if (distance > 0.0) {
+        discard;
+    }
     
     var color = fillColor;
     if (strokeWidth > 0.0 && useLineDash < 2) {
@@ -93,12 +96,12 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     var outputColor = color;
 
 
-    var antialiasedBlur = -fwidth(length(v_FragCoord));
+    /* var antialiasedBlur = -fwidth(length(v_FragCoord));
     var opacity_t = clamp(distance / antialiasedBlur, 0.0, 1.0);
     outputColor *= clamp(1.0 - distance, 0.0, 1.0) * opacity_t;
     if (outputColor.a < epsilon) {
         discard;
-    }
+    }*/
     return outputColor;
 }
 

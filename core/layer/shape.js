@@ -3,16 +3,23 @@ import { mat3, vec2 } from 'gl-matrix';
 import { TransformMatrix } from '../utils/transform';
 import { Box } from '../utils/box';
 import { addDirtyWork } from '../dirty-work/dirty-work';
+import { JEventTarget } from '../event/event-target';
 
-class BaseShape extends EventTarget {
+class BaseShape extends JEventTarget {
     _belongs = null;
+
+    _translate = vec2.fromValues(0,0);
+    _scale = vec2.fromValues(1,1);
+    _rotation = 0;
+
     _localTransform = mat3.create();
     _currentMat = mat3.create();
     _zIndex = 0; 
     _strokeWidth = 0;
 
     renderable = true;
-    visible = true;
+    _visible = true;
+    _boundingbox = null;
 
     _fill = undefined;
     _stroke = undefined;
@@ -30,7 +37,7 @@ class BaseShape extends EventTarget {
     _shadowOffsetY = 0;
     _shadowBlur = 0;
 
-    _boundingbox = new Box();
+    
 
    
     _anchor = vec2.create();
@@ -40,9 +47,10 @@ class BaseShape extends EventTarget {
 
     constructor(configs = {}) {
         super();
+        this.visible = configs.visible ?? true;
         this.fill = (configs.fill || 'transparent');
         this.stroke = (configs.stroke || 'transparent');
-        this._strokeWidth = configs.storkeWidth || 0;
+        this._strokeWidth = configs.strokeWidth || 0;
         this._strokeLineDash = configs.strokeLineDash || [];
         this.shadowColor = (configs.shadowColor || 'transparent');
         this._shadowOffsetX = configs.shadowOffsetX || 0;
@@ -50,6 +58,8 @@ class BaseShape extends EventTarget {
         this._shadowBlur = configs.shadowBlur || 0;
         this.flushColor();
         this._bindFlushColor = this.flushColor.bind(this);
+        this._boundingbox = new Box(this);
+        this.flushTransform();
     }
 
     set fill(value) {
@@ -129,6 +139,14 @@ class BaseShape extends EventTarget {
         return this._belongs;
     }
 
+    set visible(val) {
+        this._visible = val;
+        this.markMaterialDrity();
+    }
+    get visible() {
+        return this._visible;
+    }
+
     flushColor() {
         const fill = this._fill.rgb();
         const stroke = this._stroke.rgb();
@@ -171,15 +189,54 @@ class BaseShape extends EventTarget {
         return this._boundingbox.bounding;
     }
 
+    getBoundingBoxForRbush() {
+        return this._boundingbox.boundingRbush;
+    }
+
+    editBoundaryStart(context) {}
+    editBoundary(context) {}
+    editBoundaryEnd() {}
+
     updateWorldMatrix(parentMat) {
         if(parentMat) {
             mat3.multiply(this._currentMat, this._localTransform, parentMat);
         } 
         // const mat = this._localTransform;
+
         this.updateBoundingBox();
     }
     checkHit() {
         return true;
+    }
+
+    translate(vec) {
+        vec2.add(this._translate, this._translate, vec);
+        this.flushTransform();
+    }
+
+    setTranslate(x, y) {
+        vec2.set(this._translate, x, y);
+        this.flushTransform();
+    }
+    setScale(x, y) {
+        vec2.set(this._scale, x, y);
+        this.flushTransform();     
+    }
+    flushTransform() {
+        mat3.identity(this._localTransform);
+        mat3.translate(this._localTransform, this._localTransform, this._translate);
+        mat3.scale(this._localTransform, this._localTransform, this._scale);
+    }
+
+    extractTransformation() {
+        const matrix = this._localTransform;
+        vec2.set(this._translate, matrix[6], matrix[7]);
+
+        const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[3] * matrix[3]);
+        const scaleY = Math.sqrt(matrix[1] * matrix[1] + matrix[4] * matrix[4]);
+        vec2.set(this._scale, scaleX, scaleY);
+
+        this._rotation = Math.atan2(matrix[3] / scaleX, matrix[0] / scaleX);
     }
 }
 

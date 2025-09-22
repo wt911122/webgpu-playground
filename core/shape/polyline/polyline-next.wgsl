@@ -202,7 +202,7 @@ fn vs(
     var LineWidth = strokeWidth/2;//+1.0;
     var bavelLimit =  LineWidth*1.5;
     var joint = vert.joint;
-    var distance = vec4f(0.0, 0.0, 0.0, 0.0);
+    var distance = vec4f(0.0, 0.0, 0.0, strokeWidth);
     output.strokeWidth = strokeWidth;
     // var strokeAlignment: f32 = 0.5;
     // var strokeMiterlimit: f32 = 4.0;
@@ -236,16 +236,16 @@ fn vs(
         // 线段
         if(vertexNum < 0.5){
             pos = getSegmentVertPos(pointA, pointB, pointPrev, 1.0, LEFT_POINT, LineWidth);
-            distance.x = -LineWidth;
+            distance.x = LineWidth;
         } else if(vertexNum < 1.5) {
             pos = getSegmentVertPos(pointB, pointA, pointNext, -1.0, RIGHT_POINT, LineWidth);
-            distance.x = -LineWidth;
+            distance.x = LineWidth;
         } else if(vertexNum < 2.5) {
             pos = getSegmentVertPos(pointB, pointA, pointNext, 1.0, LEFT_POINT, LineWidth);
-            distance.x = LineWidth;
+            distance.x = -LineWidth;
         } else if(vertexNum < 3.5) {
             pos = getSegmentVertPos(pointA, pointB, pointPrev, -1.0, RIGHT_POINT, LineWidth);
-            distance.x = LineWidth;
+            distance.x = -LineWidth;
         }
         output.jointType = 0.0;
     } else {
@@ -332,12 +332,15 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     let jointType = fragData.jointType;
     let distance = fragData.distance;
     let d = distance.x;
-    let d1 = distance.y;
-    let d2 = distance.z;
-    let d3 = distance.w;
-    let w = fragData.strokeWidth;
+    let w = distance.w;
     // var alpha: f32 = 1.0;
-    var dist: f32;
+    var result: f32 = 0.0;
+
+    if(jointType < 0.5 ) {
+        let left = pixelLine(d-w);
+        let right = pixelLine(d+w);
+        result = (right-left);
+    }
 
     /*if(jointType == 0.0) {
         // 线段

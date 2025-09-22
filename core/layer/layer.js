@@ -48,7 +48,7 @@ class Layer extends BaseShape {
         if(idx !== -1) {
             this._stack.splice(idx, 0, instance)
         } else {
-            this.addToStack(instance);
+            this._stack.push(instance);
         }
         if(_isNew) {
             const indexRBush = this.jcanvas.indexRBush;
