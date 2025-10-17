@@ -7,7 +7,8 @@ class Layer extends BaseShape {
 
     updateWorldMatrix(parentMat) {
         if(parentMat) {
-            mat3.multiply(this._currentMat, this._localTransform, parentMat);
+            mat3.multiply(this._currentMat, parentMat, this._localTransform);
+            mat3.invert(this._currentMatInv, this._currentMat);
         } 
         const wmat = this._currentMat;
         this._stack.forEach(instance => {

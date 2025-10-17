@@ -117,7 +117,7 @@ fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineW
     let prod = bisect.x * norm.y - bisect.y * norm.x;
     if(pdir == RIGHT_POINT) {
         // 线段右侧的点
-        if(prod > 0.0) {
+        if(prod >= 0.0) {
             // norm 在 bisect 的左侧
             pos = p + norm * LineWidth;
         } else {

@@ -46,7 +46,7 @@ function SDFPainter() {
                 },
                 { 
                     binding: 2, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
-                    buffer: { type: 'uniform', minBindingSize: 144 },
+                    buffer: { type: 'uniform', minBindingSize: 160 },
                 },
             ],
         });
@@ -142,9 +142,9 @@ function SDFPainter() {
         })
 
         const MATIRIAL_OFFSET = 0;
-        const TRAN_OFFSET = 16;
-        const SHADOW_OFFSET = 28;
-        const uniformBufferSize = (4 + 4 + 4 + 4 + 12 + 4 + 4) * 4; // r, zindex, fill, stroke, transformMat
+        const TRAN_OFFSET = 20;
+        const SHADOW_OFFSET = 32;
+        const uniformBufferSize = (4 + 4 + 4 + 4 + 4 + 12 + 4 + 4) * 4; // r, zindex, fill, stroke, transformMat
        
         const uniformBufferSpace = roundUp(uniformBufferSize, device.limits.minUniformBufferOffsetAlignment);
         const uniformBuffer = device.createBuffer({
@@ -201,7 +201,7 @@ function SDFPainter() {
                     continue;
                 }
                 const {
-                    type, w, h, borderRadius, _strokeWidth, _zIndex, mat,
+                    type, x, y, w, h, borderRadius, _strokeWidth, _zIndex, mat,
                     _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
                     _strokeLineDash,
                 } = config.getConfig();
@@ -214,25 +214,28 @@ function SDFPainter() {
                     f32Offset + TRAN_OFFSET, 
                     f32Offset + TRAN_OFFSET + 12);
                 // https://webgpufundamentals.org/webgpu/lessons/resources/wgsl-offset-computer.htm
-                materialValue[0] = w;
-                materialValue[1] = h;
-                materialValue[2] = _zIndex;
-                materialValue[3] = _strokeWidth;
-                materialValue[4] = borderRadius || 0;
-                materialValue[5] = type;
-                materialValue[6] = _strokeLineDash?.length || 0;
-                // fill
-                materialValue[8] = _colors[0];
-                materialValue[9] = _colors[1];
-                materialValue[10] = _colors[2];
-                materialValue[11] = _colors[3];
-                // stroke
-                materialValue[12] = _colors[4];
-                materialValue[13] = _colors[5];
-                materialValue[14] = _colors[6];
-                materialValue[15] = _colors[7];
-                copyMat3(shapeMatrixValue, mat);
+                materialValue[0] = x;
+                materialValue[1] = y;
+                materialValue[2] = w;
+                materialValue[3] = h;
 
+                materialValue[4] = _zIndex;
+                materialValue[5] = _strokeWidth;
+                materialValue[6] = borderRadius || 0;
+                materialValue[7] = type;
+                materialValue[8] = _strokeLineDash?.length || 0;
+                // fill
+                materialValue[12] = _colors[0];
+                materialValue[13] = _colors[1];
+                materialValue[14] = _colors[2];
+                materialValue[15] = _colors[3];
+                // stroke
+                materialValue[16] = _colors[4];
+                materialValue[17] = _colors[5];
+                materialValue[18] = _colors[6];
+                materialValue[19] = _colors[7];
+                copyMat3(shapeMatrixValue, mat);
+                // console.log(materialValue)
                 if(_shadowBlur) {
                     const shadowValue = uniformValues.subarray(
                         f32Offset + SHADOW_OFFSET, 

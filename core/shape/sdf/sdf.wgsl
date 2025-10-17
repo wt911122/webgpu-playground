@@ -13,6 +13,7 @@ struct ShapeUniforms {
 @group(0) @binding(1) var<uniform> shapeUniforms: ShapeUniforms;
 
 struct PerObjectUniforms {
+    position: vec2f,
     size: vec2f,
     zindex: f32,
     strokeWidth: f32,
@@ -46,10 +47,12 @@ fn vs(
    vert: Vertex
 ) -> VertexOutput {
     var output : VertexOutput;
+    // var position = obj.position;
     var size = obj.size/2;
     var radius = size; //+ vec2(obj.strokeWidth/2);
     output.radius = radius;
-    var position = size * vert.vertexPos;
+    var fragPosition = size * vert.vertexPos;
+    var position = fragPosition + obj.position;
     /*
      * zindex的计算会影响堆叠顺序，然后对fragment中 color bland结果产生影响，具体原理不太清楚
      */
@@ -58,7 +61,7 @@ fn vs(
         * gloabalUniforms.u_ViewMatrix
         * obj.shapeMatrix
         * vec3f(position, 1)).xy, (zindexTop - obj.zindex - 1)/zindexTop, 1);
-    output.fragPosition = position;
+    output.fragPosition = fragPosition;
     return output;
 }
 

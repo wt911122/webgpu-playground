@@ -237,7 +237,7 @@ function PolylinePainter() {
                 JointType.JOINT_MITER,
                 JointType.JOINT_CAP_BUTT, 
                 JointType.CAP_BUTT, _strokeAlignment * _strokeWidth);  
-            
+            // console.log(pointsBuffer, travelBuffer);
             const lastInstanceCount = config.getPainterConfig('InstanceCount');
             const currInstanceCount = pointsBuffer.length / strideFloats - 3
             config.setPainterConfig('InstanceCount', currInstanceCount);

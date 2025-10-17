@@ -2,24 +2,35 @@ import * as d3 from 'd3-color';
 import { mat3, vec2 } from 'gl-matrix';
 import { TransformMatrix } from '../utils/transform';
 import { Box } from '../utils/box';
+import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 import { addDirtyWork } from '../dirty-work/dirty-work';
 import { JEventTarget } from '../event/event-target';
 
 class BaseShape extends JEventTarget {
     _belongs = null;
 
-    _translate = vec2.fromValues(0,0);
-    _scale = vec2.fromValues(1,1);
+    _position   = vec2.fromValues(0,0);
+    _scale      = vec2.fromValues(1,1);
+    _pivot      = vec2.fromValues(0,0);
+    _origin     = vec2.fromValues(0,0);
+    _skew       = vec2.fromValues(0,0);
     _rotation = 0;
+    _cx = 1;
+    _sx = 0;
+    _cy = 0;
+    _sy = 1;
+    _tempVec = vec2.create();
 
     _localTransform = mat3.create();
     _currentMat = mat3.create();
+    _currentMatInv = mat3.create();
     _zIndex = 0; 
     _strokeWidth = 0;
 
     renderable = true;
     _visible = true;
     _boundingbox = null;
+    _localBoundingbox = null;
 
     _fill = undefined;
     _stroke = undefined;
@@ -37,13 +48,11 @@ class BaseShape extends JEventTarget {
     _shadowOffsetY = 0;
     _shadowBlur = 0;
 
-    
-
-   
-    _anchor = vec2.create();
     _materialdirty = true;
     _geodirty = true;
     
+    _tempP = vec2.create();
+
 
     constructor(configs = {}) {
         super();
@@ -59,7 +68,14 @@ class BaseShape extends JEventTarget {
         this.flushColor();
         this._bindFlushColor = this.flushColor.bind(this);
         this._boundingbox = new Box(this);
-        this.flushTransform();
+        this._localBoundingbox = new Box(this);
+        // if(configs.rotation) {
+        //     this.setRotation(configs.rotation)
+        // }
+        // if(configs.scale) {
+        //     this._scale = configs.scale;
+        // }
+        // this.flushTransform();
     }
 
     set fill(value) {
@@ -134,6 +150,9 @@ class BaseShape extends JEventTarget {
     get matrix() {
         return this._currentMat;
     }
+    get matrixInv() {
+        return this._currentMatInv;
+    }
 
     get parent() {
         return this._belongs;
@@ -183,61 +202,51 @@ class BaseShape extends JEventTarget {
         addDirtyWork(callback)
     }
 
-    updateBoundingBox() { }
-
     getBoundingBox() {
-        return this._boundingbox.bounding;
+        return this._boundingbox;
     }
 
     getBoundingBoxForRbush() {
         return this._boundingbox.boundingRbush;
     }
+    
+    updateBoundingBox() {
 
-    editBoundaryStart(context) {}
-    editBoundary(context) {}
-    editBoundaryEnd() {}
+    }
 
     updateWorldMatrix(parentMat) {
         if(parentMat) {
-            mat3.multiply(this._currentMat, this._localTransform, parentMat);
+            mat3.multiply(this._currentMat, parentMat, this._localTransform);
+            mat3.invert(this._currentMatInv, this._currentMat);
         } 
-        // const mat = this._localTransform;
-
         this.updateBoundingBox();
     }
     checkHit() {
         return true;
     }
 
-    translate(vec) {
-        vec2.add(this._translate, this._translate, vec);
-        this.flushTransform();
+    rotateStart(context) {
+        Object.assign(context, {
+            rotation: this._rotation,
+        });
     }
 
-    setTranslate(x, y) {
-        vec2.set(this._translate, x, y);
-        this.flushTransform();
-    }
-    setScale(x, y) {
-        vec2.set(this._scale, x, y);
-        this.flushTransform();     
-    }
-    flushTransform() {
-        mat3.identity(this._localTransform);
-        mat3.translate(this._localTransform, this._localTransform, this._translate);
-        mat3.scale(this._localTransform, this._localTransform, this._scale);
+    rotate(context) {
+
     }
 
-    extractTransformation() {
-        const matrix = this._localTransform;
-        vec2.set(this._translate, matrix[6], matrix[7]);
+    rotateEnd(context) {
 
-        const scaleX = Math.sqrt(matrix[0] * matrix[0] + matrix[3] * matrix[3]);
-        const scaleY = Math.sqrt(matrix[1] * matrix[1] + matrix[4] * matrix[4]);
-        vec2.set(this._scale, scaleX, scaleY);
-
-        this._rotation = Math.atan2(matrix[3] / scaleX, matrix[0] / scaleX);
     }
+
+
+    editBoundaryStart(context) {
+
+    }
+
+    editBoundary(context) {}
+
+    editBoundaryEnd(context) {}
 }
 
 export default BaseShape;

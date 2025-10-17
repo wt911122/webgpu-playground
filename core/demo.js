@@ -53,39 +53,149 @@ import opentype from 'opentype.js';
     // const [ PolyLine ] = Ctors2;
 
     const stage = jc.stage;
-    //  const circle = Ellipse({
-    //     cx: 100,
-    //     cy: 400,
-    //     width: 100,
-    //     height: 100,
-    //     fill: 'rgb(255, 0, 255)',
-    //     stroke: 'black',
-    //     strokeWidth: 2,
-    // });
-    // stage.addToStack(circle);
+     const circle = Ellipse({
+        cx: 100,
+        cy: 400,
+        width: 100,
+        height: 100,
+        fill: 'rgb(255, 0, 255)',
+        stroke: 'black',
+        strokeWidth: 2,
+    });
+    stage.addToStack(circle);
     // circle.addEventListener('mouseenter', onMouseEnter)
     // circle.addEventListener('mouseleave', onMouseLeave)
 
-    const ellipse = Ellipse({
+    // const ellipse2 = Ellipse({
+    //     cx: 500,
+    //     cy: 50,
+    //     width: 200,
+    //     height: 100,
+    //     fill: 'rgb(255, 255, 0)',
+    //     stroke: 'black',
+    //     strokeWidth: 1,
+    //     // rotation: Math.PI/6
+    // });
+    // stage.addToStack(ellipse2);
+
+    // const group3 = Group({ lock: true });
+    // stage.addToStack(group3);
+
+    // const group2 = Group({ lock: true });
+    // group3.addToStack(group2);
+    // stage.addToStack(group2);
+
+    /* const rect5 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
+        fill: 'rgb(255, 255, 0)',
+        stroke: 'black',
+        strokeWidth: 1,
+    });
+    const rect6 = Rectangle({
+        x: 100,
+        y: 50,
+        width: 180,
+        height: 100,
+        fill: 'rgb(0, 255, 0)',
+        stroke: 'black',
+        strokeWidth: 1,
+    });
+
+    group2.addToStack(rect5);
+    group2.addToStack(rect6);
+    group2.updateWorldMatrix();
+    group2.position = vec2.fromValues(200, 200);
+    group2.origin = vec2.fromValues(group2.width/2, group2.height/2);
+    group2.flushTransform(true);
+
+    const rect7 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
+        fill: 'rgba(0, 162, 255, 1)',
+        stroke: 'black',
+        strokeWidth: 1,
+    });
+
+
+    const path22 = Path({
+        path: `M 10,30
+           A 20,20 0,0,1 50,30
+           A 20,20 0,0,1 90,30
+           Q 90,60 50,90
+           Q 10,60 10,30 
+           M 10 80 
+           C 40 10, 65 10, 95 80 
+           S 150 150, 180 80`,
+        fill: 'rgb(0, 255, 255)',
+        stroke: 'black',
+        strokeWidth: 2,
+    })
+
+    group3.addToStack(rect7);
+    group3.addToStack(path22);
+    group3.updateWorldMatrix();
+    group3.origin = vec2.fromValues(group3.width/2, group3.height/2);
+    group3.flushTransform(true);
+
+    console.log(group2)
+    const p = Ellipse({
         cx: 100,
-        cy: 70,
+        cy: 100,
+        width: 20,
+        height: 20,
+        fill: 'red',
+    });
+    stage.addToStack(p);
+
+    const rect8 = Rectangle({
+        x: 500,
+        y: 300,
         width: 180,
         height: 100,
+        fill: 'purple',
+        stroke: 'black',
+        strokeWidth: 1,
+        strokeLineDash: [1, 10]
+    });
+    stage.addToStack(rect8);
+
+    const group4 = Group({ lock: false });
+    stage.addToStack(group4);
+
+    const rect77 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
         fill: 'rgb(255, 255, 0)',
         stroke: 'black',
         strokeWidth: 1,
     });
-    stage.addToStack(ellipse);
-    const ellipse2 = Ellipse({
-        cx: 140,
-        cy: 90,
+    const rect88 = Rectangle({
+        x: 100,
+        y: 50,
         width: 180,
         height: 100,
-        fill: 'rgb(255, 255, 0)',
+        fill: 'rgb(0, 255, 0)',
         stroke: 'black',
         strokeWidth: 1,
     });
-    stage.addToStack(ellipse2);
+
+    group4.addToStack(rect77);
+    group4.addToStack(rect88);
+    group4.updateWorldMatrix();
+    group4.position = vec2.fromValues(200, 500);
+    group4.origin = vec2.fromValues(group4.width/2, group4.height/2);
+    group4.angle = 30;
+    group4.flushTransform(true);*/
+    // console.log(group2)
+    
+    
     // ellipse.addEventListener('mouseenter', onMouseEnter)
     // ellipse.addEventListener('mouseleave', onMouseLeave)
 
@@ -108,20 +218,20 @@ import opentype from 'opentype.js';
     // stage.addToStack(ellipse);
 
 
-    // const path2 = Path({
-    //     path: `M 10,30
-    //        A 20,20 0,0,1 50,30
-    //        A 20,20 0,0,1 90,30
-    //        Q 90,60 50,90
-    //        Q 10,60 10,30 
-    //        M 10 80 
-    //        C 40 10, 65 10, 95 80 
-    //        S 150 150, 180 80`,
-    //     fill: 'rgb(0, 255, 255)',
-    //     stroke: 'black',
-    //     strokeWidth: 2,
-    // })
-    // stage.addToStack(path2);
+    const path2 = Path({
+        path: `M 10,30
+           A 20,20 0,0,1 50,30
+           A 20,20 0,0,1 90,30
+           Q 90,60 50,90
+           Q 10,60 10,30 
+           M 10 80 
+           C 40 10, 65 10, 95 80 
+           S 150 150, 180 80`,
+        fill: 'rgb(0, 255, 255)',
+        stroke: 'black',
+        strokeWidth: 2,
+    })
+    stage.addToStack(path2);
 
     
     // const rect = Rectangle({
@@ -404,36 +514,37 @@ import opentype from 'opentype.js';
         })
     }
    
-    // fetch(
-    //   '/assets/Ghostscript_Tiger.svg',
-    // ).then(async (res) => {
-    //     const svg = await res.text();
+    fetch(
+      '/assets/Ghostscript_Tiger.svg',
+    ).then(async (res) => {
+        const svg = await res.text();
 
-    //     const $container = document.createElement('div');
-    //     $container.innerHTML = svg;
+        const $container = document.createElement('div');
+        $container.innerHTML = svg;
 
-    //     const $svg = $container.children[0];
+        const $svg = $container.children[0];
 
-    //     const group = Group({
-    //         x: 200,
-    //         y: 0,
-    //         lock: true,
-    //     });
-    //     for (const child of $svg.children) {
-    //         const attrs = fromSVGElement(child);
-    //         console.log(attrs);
-    //         deserializeNode(attrs, group);
-    //     }
-
-    //     stage.addToStack(group);
-    //     group.updateWorldMatrix(stage.matrix)
-    // });
+        const group = Group({
+            lock: true,
+        });
+        stage.addToStack(group);
+        for (const child of $svg.children) {
+            const attrs = fromSVGElement(child);
+            console.log(attrs);
+            deserializeNode(attrs, group);
+        }
+        group.updateWorldMatrix();
+        group.position = vec2.fromValues(200, 0);
+        group.origin = vec2.fromValues(group.width/2, group.height/2);
+        group.flushTransform();
+        group.updateWorldMatrix(stage.matrix);
+    });
 
     function deserializeNode(data, parent) {
         const { type, attributes, children } = data;
         let shape;
         if (type === 'g') {
-            shape = Group();
+            shape = Group({ lock: true });
         } else if (type === 'circle') {
             // shape = new Circle();
         } else if (type === 'ellipse') {
@@ -456,6 +567,11 @@ import opentype from 'opentype.js';
                 deserializeNode(child, shape);
             });
         } 
+        if(type === 'g') {
+            shape.updateWorldMatrix();
+            shape.origin = vec2.fromValues(shape.width/2, shape.height/2);
+            shape.flushTransform();
+        }
         
     }
 

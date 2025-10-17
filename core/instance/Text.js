@@ -65,10 +65,12 @@ class Text extends Shape {
     }
 
     updateBoundingBox() {
-        const { LT, RB } = this._boundingbox;
+        const { LT, RB, LB, RT } = this._boundingbox;
         const [a, b, c, d] = this._contentBox;
         vec2.transformMat3(LT, [a, b], this._currentMat)
         vec2.transformMat3(RB, [c, d], this._currentMat);
+        vec2.transformMat3(LB, [a, d], this._currentMat);
+        vec2.transformMat3(RT, [c, b], this._currentMat);
         const indexRBush = this.jcanvas.indexRBush;
         indexRBush.refresh(this);
     }

@@ -124,7 +124,7 @@ function EventResolver() {
                 }
                 processing = true;
                 if(dragging) {
-                    console.log('dragmove!')
+                    // console.log('dragmove!')
                     dragMove(e.offsetX, e.offsetY);
                     processing = false;
                     return;
@@ -134,7 +134,7 @@ function EventResolver() {
                 if(Math.hypot(currX - offsetX, currY - offsetY) > 2) {
                     
                     dragging = dragStart(offsetX, offsetY);
-                    console.log('dragstart!', dragging)
+                    // console.log('dragstart!', dragging)
                 }
                 processing = false;
             }
@@ -256,7 +256,7 @@ function EventResolver() {
     function initDragDrop(canvas, jc) {
         const context = {
             target: null,
-            targetTranslate: null,
+            targetPosition: null,
             targetWorldMtx: null,
             canvasPos: null,
             targetPos: vec2.create(),
@@ -270,8 +270,8 @@ function EventResolver() {
                     const target = checkTarget(lockedTarget);
                     
                     context.target = target;
-                    context.targetTranslate = mat3.clone(target._translate)
-                    context.targetWorldMtx = mat3.clone(target.parent.matrix)
+                    context.targetPosition = vec2.clone(target.position)
+                    context.targetWorldMtx = mat3.clone(target.parent.matrixInv)
                     // mat3.invert(context.targetWorldMtxInv, target.parent.matrix)
                     context.canvasPos = vec2.clone(jc._mousevec);
                     vec2.transformMat3(context.targetPos, context.canvasPos, context.targetWorldMtx);
@@ -292,7 +292,7 @@ function EventResolver() {
                 }
             },
             dragMove(x, y) {
-                const { target, targetTranslate, targetWorldMtx, canvasPos, targetPos, vec, event } = context;
+                const { target, targetPosition, targetWorldMtx, canvasPos, targetPos, vec, event } = context;
                 jc.viewport2Canvas(x, y, vec);
                 if(event._propagation) {
                     event.doDragging({
@@ -304,18 +304,14 @@ function EventResolver() {
                     target.dispatchEvent(event);
                 }
                 if(event.useDefault) {
-                    const locationMtx = target._localTransform;
 
                     vec2.transformMat3(vec, vec, targetWorldMtx);
                     vec2.subtract(vec, vec, targetPos);
-                    vec2.add(vec, targetTranslate, vec)
-                    target.setTranslate(vec[0], vec[1]);
+                    vec2.add(vec, targetPosition, vec)
+                    target.position = vec;
+                    target.flushTransform();
 
-
-                    // vec2.transformMat3(vec, vec, targetWorldMtxInv);
-                    // mat3.translate(locationMtx, targetLocalMtx, vec);
                     target.updateWorldMatrix(target.parent.matrix);
-                    // target.extractTransformation();
                     target.markMaterialDrity();
                 }
             },

@@ -81,3 +81,13 @@ export function copyMat3(out, mat) {
     out[10] = mat[10];
     out[11] = mat[11];
 }
+
+function dotProduct(v1, v2) {
+    return v1[0] * v2[0] + v1[1] * v2[1];
+}
+export function projectVector(out, a, unitB) {
+    // 计算投影
+    const dot = dotProduct(a, unitB);
+    out[0] = dot * unitB[0];
+    out[1] = dot * unitB[1];
+}

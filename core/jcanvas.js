@@ -223,7 +223,7 @@ class JCanvas {
             mouseVec,
             this.normalizeVec(offsetX, offsetY),
             viewProjectionMatrixInv);
-        const shapes = this.indexRBush.inBound(_lockBox.bounding);
+        const shapes = this.indexRBush.inBound([..._lockBox.LT, ..._lockBox.RB]);
         if(shapes.length) {
             shapes.sort((a, b) => b._zIndex - a._zIndex);
             let shape;
