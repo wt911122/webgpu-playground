@@ -58,7 +58,7 @@ class ShaperPainter {
             }
         }
         if(onPainterCreate) {
-            onPainterCreate(this);
+            onPainterCreate(this, context);
         }
     }
 

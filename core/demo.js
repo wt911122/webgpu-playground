@@ -17,6 +17,10 @@ import opentype from 'opentype.js';
 
 
 (async function () {
+    // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
+    // const yaheifontjson = await yaheifontRes.json();
+    // const texture = await fetch('/assets/font/ya-hei-ascii.png');
+    // const yaheifontBitmap = await createImageBitmap(texture);
 
     const jc = new JCanvas();
     // jc.usePainter(GridPainter);
@@ -32,6 +36,8 @@ import opentype from 'opentype.js';
     // const PolyLine = jc.useShape(PolyLineCtor);
     // const Text = jc.useShape(TextCtor);
 
+    await jc.registMSDFont('ya-hei-ascii', '/assets/font/');
+
 
     const Group = jc.getShapeCtor('Group');
     const Ellipse = jc.getShapeCtor('Ellipse');
@@ -39,6 +45,7 @@ import opentype from 'opentype.js';
     const Path = jc.getShapeCtor('Path');
     const PolyLine = jc.getShapeCtor('PolyLine');
     const Text = jc.getShapeCtor('Text');
+    const MSDFText = jc.getShapeCtor('MSDFText');
 
     // painter的顺序和堆叠顺序需要一致
     // const gridPainter = jc.use(GridPainter);
@@ -53,18 +60,57 @@ import opentype from 'opentype.js';
     // const [ PolyLine ] = Ctors2;
 
     const stage = jc.stage;
-     const circle = Ellipse({
-        cx: 100,
-        cy: 400,
-        width: 100,
-        height: 100,
-        fill: 'rgb(255, 0, 255)',
-        stroke: 'black',
-        strokeWidth: 2,
-    });
-    stage.addToStack(circle);
+    //  const circle = Ellipse({
+    //     cx: 100,
+    //     cy: 50,
+    //     width: 200,
+    //     height: 200,
+    //     fill: 'rgb(255, 0, 255)',
+    //     stroke: 'black',
+    //     strokeWidth: 2,
+    // });
+    // stage.addToStack(circle);
     // circle.addEventListener('mouseenter', onMouseEnter)
     // circle.addEventListener('mouseleave', onMouseLeave)
+
+    const msdftext = MSDFText({
+        x: 200, y: 50,
+        fontFamily: 'ya-hei-ascii',
+        fontSize: 1/3,
+        fill: 'black',
+        content: `
+WebGPU exposes an API for performing operations, such as rendering
+and computation, on a Graphics Processing Unit.
+
+Graphics Processing Units, or GPUs for short, have been essential
+in enabling rich rendering and computational applications in personal
+computing. WebGPU is an API that exposes the capabilities of GPU
+hardware for the Web. The API is designed from the ground up to
+efficiently map to (post-2014) native GPU APIs. WebGPU is not related
+to WebGL and does not explicitly target OpenGL ES.
+
+WebGPU sees physical GPU hardware as GPUAdapters. It provides a
+connection to an adapter via GPUDevice, which manages resources, and
+the device’s GPUQueues, which execute commands. GPUDevice may have
+its own memory with high-speed access to the processing units.
+GPUBuffer and GPUTexture are the physical resources backed by GPU
+memory. GPUCommandBuffer and GPURenderBundle are containers for
+user-recorded commands. GPUShaderModule contains shader code. The
+other resources, such as GPUSampler or GPUBindGroup, configure the
+way physical resources are used by the GPU.
+
+GPUs execute commands encoded in GPUCommandBuffers by feeding data
+through a pipeline, which is a mix of fixed-function and programmable
+stages. Programmable stages execute shaders, which are special
+programs designed to run on GPU hardware. Most of the state of a
+pipeline is defined by a GPURenderPipeline or a GPUComputePipeline
+object. The state not included in these pipeline objects is set
+during encoding with commands, such as beginRenderPass() or
+setBlendConstant().
+`
+    })
+
+    stage.addToStack(msdftext);
 
     // const ellipse2 = Ellipse({
     //     cx: 500,
@@ -218,20 +264,20 @@ import opentype from 'opentype.js';
     // stage.addToStack(ellipse);
 
 
-    const path2 = Path({
-        path: `M 10,30
-           A 20,20 0,0,1 50,30
-           A 20,20 0,0,1 90,30
-           Q 90,60 50,90
-           Q 10,60 10,30 
-           M 10 80 
-           C 40 10, 65 10, 95 80 
-           S 150 150, 180 80`,
-        fill: 'rgb(0, 255, 255)',
-        stroke: 'black',
-        strokeWidth: 2,
-    })
-    stage.addToStack(path2);
+    // const path2 = Path({
+    //     path: `M 10,30
+    //        A 20,20 0,0,1 50,30
+    //        A 20,20 0,0,1 90,30
+    //        Q 90,60 50,90
+    //        Q 10,60 10,30 
+    //        M 10 80 
+    //        C 40 10, 65 10, 95 80 
+    //        S 150 150, 180 80`,
+    //     fill: 'rgb(0, 255, 255)',
+    //     stroke: 'black',
+    //     strokeWidth: 2,
+    // })
+    // stage.addToStack(path2);
 
     
     // const rect = Rectangle({
@@ -514,7 +560,7 @@ import opentype from 'opentype.js';
         })
     }
    
-    fetch(
+    /* fetch(
       '/assets/Ghostscript_Tiger.svg',
     ).then(async (res) => {
         const svg = await res.text();
@@ -538,7 +584,7 @@ import opentype from 'opentype.js';
         group.origin = vec2.fromValues(group.width/2, group.height/2);
         group.flushTransform();
         group.updateWorldMatrix(stage.matrix);
-    });
+    });*/
 
     function deserializeNode(data, parent) {
         const { type, attributes, children } = data;

@@ -16,6 +16,7 @@ import SDFPainter from './shape/sdf';
 import GridPainter from './shape/grid';
 import PolylinePainter from './shape/polyline/painter-new.js';
 import MeshPainter from './shape/mesh';
+import MSDFTextPainter from './shape/msdftext';
 
 import GroupCtor from './layer/group';
 import EllipseCtor from './instance/ellipse';
@@ -23,10 +24,14 @@ import RectangleCtor from './instance/rectangle';
 import PolyLineCtor from './instance/polyline';
 import PathCtor from './instance/path';
 import TextCtor from './instance/Text';
+import MSDFTextCtor from './instance/MSDFText';
 
 import InfraRegistry from './infra/infra-registry';
 import EventResolver from './event/event-resolver';
 import SelectBox from './infra/select-box';
+
+import FontRegistry from './font/font-registry';
+
 
 class JCanvas {
     _stage = new Stage();
@@ -37,6 +42,7 @@ class JCanvas {
     _painterRegistry = new PainterRegistry();
     _shapeRegistry = new Map();
     _infraRegistry = new InfraRegistry();
+    _MSDFfontRegistry = new FontRegistry();
 
     _mousevec = vec2.create();
 
@@ -62,6 +68,7 @@ class JCanvas {
         this.usePainter(SDFPainter);
         this.usePainter(MeshPainter);
         this.usePainter(PolylinePainter);
+        this.usePainter(MSDFTextPainter);
 
        
         this.useShape('Group', GroupCtor);
@@ -70,9 +77,17 @@ class JCanvas {
         this.useShape('Path', PathCtor);
         this.useShape('PolyLine', PolyLineCtor);
         this.useShape('Text', TextCtor);
+        this.useShape('MSDFText', MSDFTextCtor);
 
         this.useInfra(EventResolver);
         this.useInfra(SelectBox);
+    }
+
+    registMSDFont(fontFamily, url) {
+        this._MSDFfontRegistry.regist(fontFamily, url);
+    }
+    async loadMSDFFont(device) {
+        await this._MSDFfontRegistry.load(device)
     }
 
     useShape(name, ctor) {
@@ -130,6 +145,7 @@ class JCanvas {
             format: presentationFormat,
             alphaMode: 'premultiplied'
         })
+        await this.loadMSDFFont(device);
 
         const camera = Camera();
         camera.projection(c_width, c_height);
