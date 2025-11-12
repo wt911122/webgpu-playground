@@ -89,6 +89,8 @@ class Text extends Shape {
         } = this;
         return {
             path: this._fontPath,
+            _strokeWidth: 1,
+            _strokeLineDash: [],
             _zIndex, 
             _colors, 
             mat: paddingMat3(_currentMat)
@@ -105,6 +107,12 @@ class Text extends Shape {
                 painter: 'MeshPainter',
                 configGetter: 'getMeshConfig'
             },
+            // {
+            //     ctor: Text,
+            //     // condition: (instance) => instance._strokeWidth > 0 && instance._stroke.opacity !== 0 ,
+            //     painter: 'PolylinePainter',
+            //     configGetter: 'getMeshConfig'
+            // }
         ]
     }
 }

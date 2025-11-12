@@ -24,7 +24,7 @@ class Font {
         const charCount = json.chars.length;
         const charsBuffer = device.createBuffer({
             label: 'MSDF character layout buffer',
-            size: charCount * Float32Array.BYTES_PER_ELEMENT * 8,
+            size: charCount * Float32Array.BYTES_PER_ELEMENT * 10,
             usage: GPUBufferUsage.STORAGE,
             mappedAtCreation: true,
         });
@@ -48,28 +48,40 @@ class Font {
             charsArray[offset + 5] = char.height; // size.y
             charsArray[offset + 6] = char.xoffset; // offset.x
             charsArray[offset + 7] = -char.yoffset; // offset.y
-            offset += 8;
+            charsArray[offset + 8] = char.page; // page
+            offset += 10;
         }
 
         charsBuffer.unmap();
 
-        const pageTextures = json.pages.map((url, idx) => {
+        const textureMap = device.createTexture({
+            label: `MSDF font texture ${this.fontFamily}`,
+            size: {
+                width: json.common.scaleW,
+                height: json.common.scaleH,
+                depthOrArrayLayers: imageBitmaps.length,
+            },
+            format: 'rgba8unorm',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+
+        json.pages.forEach((url, idx) => {
             const imageBitmap = imageBitmaps[idx];
-            const texture = device.createTexture({
-                label: `MSDF font texture ${url}`,
-                size: [imageBitmap.width, imageBitmap.height, 1],
-                format: 'rgba8unorm',
-                usage:
-                    GPUTextureUsage.TEXTURE_BINDING |
-                    GPUTextureUsage.COPY_DST |
-                    GPUTextureUsage.RENDER_ATTACHMENT,
-                });
+            // const texture = device.createTexture({
+            //     label: `MSDF font texture ${url}`,
+            //     size: [imageBitmap.width, imageBitmap.height, 1],
+            //     format: 'rgba8unorm',
+            //     usage:
+            //         GPUTextureUsage.TEXTURE_BINDING |
+            //         GPUTextureUsage.COPY_DST |
+            //         GPUTextureUsage.RENDER_ATTACHMENT,
+            //     });
             device.queue.copyExternalImageToTexture(
                 { source: imageBitmap },
-                { texture },
+                { texture: textureMap, origin: { x: 0, y: 0, z: idx }  },
                 [imageBitmap.width, imageBitmap.height]
             );
-            return texture;
+            // return texture;
         });
 
         const kernings = new Map();
@@ -100,7 +112,9 @@ class Font {
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {},
+                    texture: {
+                        viewDimension: '2d-array',
+                    },
                 },
                 {
                     binding: 1,
@@ -122,7 +136,12 @@ class Font {
                 {
                     binding: 0,
                     // TODO: Allow multi-page fonts
-                    resource: pageTextures[0].createView(),
+                    resource: textureMap.createView({
+                        dimension: '2d-array', 
+                        baseArrayLayer: 0,
+                        arrayLayerCount: imageBitmaps.length,
+                    }),
+                    
                 },
                 {
                     binding: 1,

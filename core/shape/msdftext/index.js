@@ -3,6 +3,7 @@ import msdftextShader from './msdftext.wgsl?raw';
 
 import { paddingMat3, copyMat3 } from '../../utils/transform';
 import { createBufferWithData } from '../../utils/buffer';
+import { doOverlapBox } from '../../utils/box';
 
 function MSDFTextPainter() {
     const MAX_OBJECTS = 30000;
@@ -11,6 +12,7 @@ function MSDFTextPainter() {
     function generateRender(context) {
         const _objectInfos = [];
         const device = context.device;
+        const viewport = context.viewport;
         const shapeProgram = device.createShaderModule({
             code: msdftextShader,
         });
@@ -34,12 +36,14 @@ function MSDFTextPainter() {
         });
 
         const fontBindGroupLayout = device.createBindGroupLayout({
-            label: 'MSDF font group layout',
+            label: 'MSDF pipline group layout',
             entries: [
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {},
+                    texture: {
+                        viewDimension: '2d-array',
+                    },
                 },
                 {
                     binding: 1,
@@ -198,7 +202,7 @@ function MSDFTextPainter() {
                     }
                 );
             // }
-
+                console.log(textArray)
             textBuffer.unmap();
 
             const bindGroup = device.createBindGroup({
@@ -242,6 +246,9 @@ function MSDFTextPainter() {
                 if(!config.enable) {
                     continue;
                 }
+                if(!doOverlapBox(config.getInstance().getBoundingBox(), viewport)) {
+                    continue
+                }
                 const {
                     _zIndex, mat, fontSize,
                     _colors,
@@ -272,6 +279,9 @@ function MSDFTextPainter() {
                 const config = configs[i];
                 if(!config.enable) {
                     continue;
+                }
+                if(!doOverlapBox(config.getInstance().getBoundingBox(), viewport)) {
+                    continue
                 }
                 const font = config.getPainterConfig('Font');
                 const textBindGroup = config.getBindGroup('TextBindGroup');

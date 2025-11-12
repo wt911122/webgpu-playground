@@ -64,6 +64,10 @@ class InstanceConfig {
         return this._bindingGroup.get(name);
     }
 
+    getInstance() {
+        return this._instance;
+    }
+
 }
 
 export default InstanceConfig;

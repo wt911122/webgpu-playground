@@ -46,3 +46,20 @@ export class Box {
         return `[${this.LT[0]}, ${this.LT[1]}, ${this.RT[0]}, ${this.RT[1]}]`
     }
 }
+
+export function doOverlapBox(box1, box2) {
+    const LTBox1 = box1.LT;
+    const RBBox1 = box1.RB;
+    const LTBox2 = box2.LT;
+    const RBBox2 = box2.RB;
+    
+    if (LTBox1[0] == RBBox1[0] || LTBox1[1] == RBBox1[1] ||
+        LTBox2[0] == RBBox2[0] || LTBox2[1] == RBBox2[1]) {
+        return false;
+    }
+
+    return !(RBBox1[0] <= LTBox2[0] ||   // left
+                RBBox1[1] <= LTBox2[1] ||   // bottom
+                LTBox1[0] >= RBBox2[0] ||   // right
+                LTBox1[1] >= RBBox2[1]);    // top
+}

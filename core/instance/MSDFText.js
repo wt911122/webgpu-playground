@@ -106,10 +106,10 @@ class MSDFText extends Shape {
     updateBoundingBox() {
         const { x, y, w, h } = this;
         const lc = this._localBoundingbox;
-        vec2.set(lc.LT, 0, h);
-        vec2.set(lc.RB, w, 0);
-        vec2.set(lc.LB, 0, 0);
-        vec2.set(lc.RT, w, h);
+        vec2.set(lc.LT, 0, 0);
+        vec2.set(lc.RB, w, h);
+        vec2.set(lc.LB, 0, h);
+        vec2.set(lc.RT, w, 0);
 
         const { LT, RB, LB, RT } = this._boundingbox;
         vec2.transformMat3(LT, lc.LT, this._currentMat)
