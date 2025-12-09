@@ -84,21 +84,22 @@ fn sampleMsdf(texcoord: vec2f, page: f32) -> f32 {
 
 @fragment
 fn fs(input : VertexOutput) -> @location(0) vec4f {
-    let pxRange = 4.0;
-    let sz = vec2f(textureDimensions(fontTexture, 0));
-    let dx = sz.x*length(vec2f(dpdxFine(input.texcoord.x), dpdyFine(input.texcoord.x)));
-    let dy = sz.y*length(vec2f(dpdxFine(input.texcoord.y), dpdyFine(input.texcoord.y)));
-    let toPixels = pxRange * inverseSqrt(dx * dx + dy * dy);
+    // let pxRange = 4.0;
+    // let sz = vec2f(textureDimensions(fontTexture, 0));
+    // let dx = sz.x*length(vec2f(dpdxFine(input.texcoord.x), dpdyFine(input.texcoord.x)));
+    // let dy = sz.y*length(vec2f(dpdxFine(input.texcoord.y), dpdyFine(input.texcoord.y)));
+    // let toPixels = pxRange * inverseSqrt(dx * dx + dy * dy);
     let sigDist = sampleMsdf(input.texcoord, input.page) - 0.5;
-    let pxDist = sigDist * toPixels;
+    // let pxDist = sigDist * toPixels;
+   
+    var fillColor = vec4f(obj.fill.rgb*obj.fill.a/255, obj.fill.a);
+    // let edgeWidth = 0.1;
 
-    let edgeWidth = 0.5;
-
-    let alpha = smoothstep(-edgeWidth, edgeWidth, pxDist);
-
+    // let alpha = smoothstep(-edgeWidth, edgeWidth, pxDist);
+    var alpha = clamp(sigDist/fwidth(sigDist) + 0.5, 0.0, 1.0);
     if (alpha < 0.001) {
         discard;
     }
 
-    return vec4f(obj.fill.rgb, obj.fill.a * alpha);
+    return vec4f(fillColor.rgb, fillColor.a * alpha);
 }

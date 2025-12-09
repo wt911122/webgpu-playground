@@ -47,7 +47,7 @@ class PolyLine extends Shape {
         return [
             {
                 ctor: PolyLine,
-                painter: 'PolylinePainter',
+                painter: 'SmoothPolyline',
                 configGetter: 'getConfig'
             }
         ];

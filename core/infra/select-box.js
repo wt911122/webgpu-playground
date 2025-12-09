@@ -34,25 +34,25 @@ function SelectBox() {
 
         // console.log(`M${LT[0]} ${LT[1]}L${RT[0]} ${RT[1]}L${RB[0]} ${RB[1]}L${LB[0]} ${LB[1]}Z`)
         boundary.path = `M${LT[0]} ${LT[1]}L${RT[0]} ${RT[1]}L${RB[0]} ${RB[1]}L${LB[0]} ${LB[1]}Z`,
-        cpA.x = LT[0]; cpA.y = LT[1];
-        cpA.flushTransform();
-        cpB.x = RT[0]; cpB.y = RT[1];
-        cpB.flushTransform();
-        cpC.x = RB[0]; cpC.y = RB[1];
-        cpC.flushTransform();
-        cpD.x = LB[0]; cpD.y = LB[1];
-        cpD.flushTransform();
+        // cpA.x = LT[0]; cpA.y = LT[1];
+        // cpA.flushTransform();
+        // cpB.x = RT[0]; cpB.y = RT[1];
+        // cpB.flushTransform();
+        // cpC.x = RB[0]; cpC.y = RB[1];
+        // cpC.flushTransform();
+        // cpD.x = LB[0]; cpD.y = LB[1];
+        // cpD.flushTransform();
         // console.log(boundary.path)
         
-        cpRotate.x = LT[0] + (RT[0] - LT[0])/2;
-        cpRotate.y = LT[1] + (RT[1] - LT[1])/2;
-        cpRotate.flushTransform();
+        // cpRotate.x = LT[0] + (RT[0] - LT[0])/2;
+        // cpRotate.y = LT[1] + (RT[1] - LT[1])/2;
+        // cpRotate.flushTransform();
         boundary.visible = true;
-        cpA.visible = true;
-        cpB.visible = true;
-        cpC.visible = true;
-        cpD.visible = true;
-        cpRotate.visible = true;
+        // cpA.visible = true;
+        // cpB.visible = true;
+        // cpC.visible = true;
+        // cpD.visible = true;
+        // cpRotate.visible = true;
         root.updateWorldMatrix();
     }
 
@@ -214,7 +214,7 @@ function SelectBox() {
         const boundary = Path({
             path: '',
             stroke: 'blue',
-            strokeWidth: 1,
+            strokeWidth: 0.5,
             visible,
         })
         boundary.checkHit = () => false;
@@ -269,11 +269,11 @@ function SelectBox() {
             cpRotate
         });
         root.addToStack(boundary);
-        root.addToStack(cpA);
-        root.addToStack(cpB);
-        root.addToStack(cpC);
-        root.addToStack(cpD);
-        root.addToStack(cpRotate);
+        // root.addToStack(cpA);
+        // root.addToStack(cpB);
+        // root.addToStack(cpC);
+        // root.addToStack(cpD);
+        // root.addToStack(cpRotate);
         jc.stage.addToToolStack(root);
 
         jc.stage.addEventListener('click', e => {

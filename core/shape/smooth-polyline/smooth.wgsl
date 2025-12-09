@@ -44,12 +44,11 @@ const expand: f32 = 1.0;
 
 struct Vertex {
     @location(1) prev: vec2f,
-    @location(2) pointA: vec3f,
-    @location(3) pointB: vec3f,
+    @location(2) pointA: vec2f,
+    @location(3) pointB: vec2f,
     @location(4) next: vec2f,
     @location(5) joint: f32,
-    @location(6) num: f32,
-    @location(7) travel: f32,
+    @location(6) travel: f32,
 };
 
 
@@ -103,8 +102,8 @@ fn vs(
     var forward = xBasis / len;
     var norm = vec2f(forward.y, -forward.x);
 
-    var jointType = vert.joint;
-    var vertexNum = vert.num;
+    var jointType = floor(vert.joint / 16.0);
+    var vertexNum = vert.joint - jointType * 16.0;
     var dx:f32 = 0.0;
     var dy:f32 = 1.0;
 
@@ -118,6 +117,7 @@ fn vs(
 
     var pos: vec2f;
     if (capType == CAP_ROUND) {
+        vertexNum += 4.0;
         jointType = JOINT_CAP_ROUND;
         capType = 0.0;
         lineAlignment = -lineAlignment;
@@ -390,6 +390,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     var vLine2 = fragData.vLine2;
     var vArc = fragData.vArc;
     var vTravel = fragData.vTravel;
+    var strokeColor = vec4f(obj.stroke.rgb * obj.stroke.a / 255.0, obj.stroke.a); 
 
     if (vType < 0.5) {
         var left = pixelLine(-vLine1.y - vLine1.x, vLine1.z, vLine1.w);
@@ -430,7 +431,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
         alpha *= clamp(vArc.z + 0.5, 0.0, 1.0);
     }
 
-    return obj.stroke * alpha;
+    return strokeColor * alpha;
 }
 
 

@@ -1,7 +1,41 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            #app {
+                width: 1000px;
+                height: 650px;
+                
+            }
+            #app{
+                border: 1px solid red;
+                box-shadow: 10px 0 10px rgba(0,0,0,0.3);
+            }
+        </style>
+    </head>
     <body>
-        <div id="app"></div>
-        <script src="./sdf/circle-with-matrix.js" type="module"></script>
+        <div id="app">
+            <!-- <canvas width="800" height="600"></canvas> -->
+        </div>
+        <div>
+            <label for="filekey">
+                filekey
+                <input id="filekey" />
+            </label>
+            <label for="nodeid">
+                nodeid
+                <input id="nodeid" />
+            </label>
+             <label for="FIGMA_TOKEN">
+                FIGMA_TOKEN
+                <input id="FIGMA_TOKEN" />
+            </label>
+            <button id="showFigma">展示</button>
+        </div>
+        <!-- <script src="./sdf/vertex-demo.js" type="module"></script> -->
+        <!-- <script src="./sdf/circle-with-matrix.js" type="module"></script> -->
+        <!-- <script src="./sdf/mask.js" type="module"></script>  -->
+        <script src="./core/demo.js" type="module"></script>
     </body>
 </html>

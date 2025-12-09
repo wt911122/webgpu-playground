@@ -3,12 +3,30 @@ import { mat3, vec2 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
 import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 
+const ZERO_WIDTH = {
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+}
 class Rectangle extends Shape {
     static type = 1;
     w = 0;
     h = 0;
 
-    borderRadius = 0;
+    _borderRadius = {
+        topLeft: 0,
+        topRight: 0,
+        bottomLeft: 0,
+        bottomRight: 0,
+    };
+
+    _strokeWidth = {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    }
 
     get x() {
         return this._position[0];
@@ -63,17 +81,98 @@ class Rectangle extends Shape {
     set position(value){
         vec2.copy(this._position, value);
     }
+    get pivot() {
+        return this._pivot;
+    }
 
+    set pivot(value){
+        vec2.copy(this._pivot, value);
+    }
+
+    get scale() {
+        return this._scale;
+    }
+
+    set scale(value){
+        vec2.copy(this._scale, value);
+    }
+
+    get origin() {
+        return this._origin;
+    }
+
+    set origin(value){
+        vec2.copy(this._origin, value);
+    }
+
+    get position() {
+        return this._position;
+    }
+
+    set position(value){
+        vec2.copy(this._position, value);
+    }
+
+    set borderRadius(value) {
+        if(typeof value === 'number') {
+            Object.assign(this._borderRadius, {
+                topLeft: value,
+                topRight: value,
+                bottomLeft: value,
+                bottomRight: value,
+            })
+        }
+        if(typeof value === 'object') { 
+            Object.assign(this._borderRadius, {
+                topLeft: value?.topLeft ?? 0,
+                topRight: value?.topRight ?? 0,
+                bottomLeft: value?.bottomLeft ?? 0,
+                bottomRight: value?.bottomRight ?? 0,
+            })
+        }
+    }
+
+    get borderRadius() {
+        return this._borderRadius;
+    }
+
+    set strokeWidth(value) {
+        if(typeof value === 'number') {
+            Object.assign(this._strokeWidth, {
+                left: value,
+                top: value,
+                right: value,
+                bottom: value,
+            })
+        }
+        if(typeof value === 'object') { 
+            Object.assign(this._strokeWidth, {
+                left: value?.left ?? 0,
+                top: value?.top ?? 0,
+                right: value?.right ?? 0,
+                bottom: value?.bottom ?? 0,
+            })
+        }
+    }
+
+    get strokeWidth() {
+        if(this._stroke.opacity === 0) {
+            return ZERO_WIDTH;
+        }
+        return this._strokeWidth;
+    }
 
     constructor(configs) {
         super(configs);
-        const { x, y, width, height, borderRadius } = configs;
+        const { x, y, width, height, strokeWidth, borderRadius, rotation } = configs;
         this.width = width;
         this.height = height;
         this.x = x ?? 0;
         this.y = y ?? 0;
         this.borderRadius = borderRadius;
-        this.flushTransform();
+        this.strokeWidth = strokeWidth;
+        this.rotation = rotation ?? 0; 
+        this.flushTransform(true);
     }
 
     updateBoundingBox() {
@@ -125,7 +224,7 @@ class Rectangle extends Shape {
         const v1 = [vecf[0] - x, vecf[1] - y];
         const v2 = [vect[0] - x, vect[1] - y];
         const angleInRadians = calculateAngle(v1, v2);
-        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
         this.rotation = rotation + angleInRadians;
         this.flushTransform(true);
         this.updateWorldMatrix(this.parent.matrix)
@@ -164,7 +263,7 @@ class Rectangle extends Shape {
 
         this.width = bounding[0] + vecDelta[0];
         this.height = bounding[1] + vecDelta[1];
-        console.log(vecDelta)
+        // console.log(vecDelta)
         vec2.multiply(vecDelta, vecDelta, factor)
         vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
         vec2.add(this.position, position, this._tempVec);
@@ -193,30 +292,48 @@ class Rectangle extends Shape {
         }
         
         const lt = this._localTransform;
+        const scale = this._scale;
+        const pivot = this._pivot;
+        const origin = this._origin;
         const position = this._position;
 
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx;
-        lt[1] = this._sx;
-        lt[3] = this._cy;
-        lt[4] = this._sy;
+        const sx = scale[0];
+        const sy = scale[1];
 
-        lt[6] = position[0];
-        lt[7] = position[1];
+        const px = pivot[0];
+        const py = pivot[1];
+
+        const ox = -origin[0];
+        const oy = -origin[1];
+
+        // get the matrix values of the container based on its this properties..
+        lt[0] = this._cx * sx;
+        lt[1] = this._sx * sx;
+        lt[3] = this._cy * sy;
+        lt[4] = this._sy * sy;
+
+        lt[6] = position[0] - ((px * lt[0]) + (py * lt[3])) // Pivot offset
+            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
+            - ox; // Remove origin to maintain position
+        lt[7] = position[1] - ((px * lt[1]) + (py * lt[4])) // Pivot offset
+            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
+            - oy;
 
     }
 
 
     getShapeConfig() {
         const { 
-            w, h, _strokeWidth, _zIndex, _currentMat, 
-            _colors, borderRadius, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
+            w, h, strokeWidth, borderRadius, _zIndex, _currentMat, 
+            _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
             _strokeLineDash
          } = this;
+        //  console.log(_zIndex);
         return {
             x:0, y:0,
-            w, h, borderRadius,
-            _strokeWidth,
+            w, h, 
+            borderRadius,
+            strokeWidth,
             _strokeLineDash,
             _zIndex, 
             _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
@@ -282,15 +399,15 @@ class Rectangle extends Shape {
         return [
             {
                 ctor: Rectangle,
-                painter: 'SDFPainter',
+                painter: 'SDFRectPainter',
                 configGetter: 'getShapeConfig'
             }, 
-            {
-                ctor: Rectangle,
-                condition: (instance) => instance._strokeWidth > 0 && instance._strokeLineDash.length > 0,
-                painter: 'PolylinePainter',
-                configGetter: 'getDashedBorderConfig',
-            }
+            // {
+            //     ctor: Rectangle,
+            //     condition: (instance) => instance._strokeWidth > 0 && instance._strokeLineDash.length > 0,
+            //     painter: 'PolylinePainter',
+            //     configGetter: 'getDashedBorderConfig',
+            // }
         ];
         // painter.usePainter(Rectangle, 'SDFPainter', 'getShapeConfig');
         // if(this._strokeWidth > 0 && this._strokeLineDash.length > 0) {

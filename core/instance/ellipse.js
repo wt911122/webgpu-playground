@@ -9,9 +9,12 @@ function dotProduct(v1, v2) {
 }
 
 class Ellipse extends Shape {
-    static type = 0;
+    static type = 2;
     w = 0;
     h = 0;
+    startingAngle = 0;
+    endingAngle = Math.PI*2;
+    innerRadius = 0;
 
     set width(val) {
         this.w = val;
@@ -71,11 +74,14 @@ class Ellipse extends Shape {
     }
     constructor(configs) {
         super(configs);
-        const { cx, cy, width, height, r } = configs;
+        const { cx, cy, width, height, r, startingAngle, endingAngle, innerRadius } = configs;
         this.w = width || r*2;
         this.h = height || r*2;
         this.x = cx ?? 0;
         this.y = cy ?? 0;
+        this.startingAngle = startingAngle ?? 0;
+        this.endingAngle = endingAngle ?? Math.PI*2;
+        this.innerRadius = innerRadius ?? 0;    
         this.flushTransform();
     }
 
@@ -218,14 +224,17 @@ class Ellipse extends Shape {
 
     }
 
-    getConfig() {
+    getShapeConfig() {
         const { 
-            w, h, _strokeWidth, _zIndex, _currentMat, _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur
+            w, h, 
+            startingAngle, endingAngle, innerRadius,
+            _strokeWidth, _zIndex, _currentMat, _colors, 
+            _shadowOffsetX, _shadowOffsetY, _shadowBlur
         } = this;
         return {
             x:0, y:0,
-            w, h,
-            _strokeWidth,
+            w, h, startingAngle, endingAngle, innerRadius,
+            strokeWidth: { top: _strokeWidth },
             _zIndex, 
             _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
             type: Ellipse.type,
@@ -259,14 +268,15 @@ class Ellipse extends Shape {
         return [
             {
                 ctor: Ellipse,
-                painter: 'SDFPainter',
-                configGetter: 'getConfig'
-            }, {
-                ctor: Ellipse,
-                condition: (instance) => this._strokeWidth > 0 && this._strokeLineDash.length > 0,
-                painter: 'PolylinePainter',
-                configGetter: 'getDashedBorderConfig'
-            }
+                painter: 'SDFRectPainter',
+                configGetter: 'getShapeConfig'
+            }, 
+            // {
+            //     ctor: Ellipse,
+            //     condition: (instance) => this._strokeWidth > 0 && this._strokeLineDash.length > 0,
+            //     painter: 'PolylinePainter',
+            //     configGetter: 'getDashedBorderConfig'
+            // }
         ];
     }
 }

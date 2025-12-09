@@ -15,12 +15,16 @@ class ShaperPainter {
     _renderFn = null;
     _afterRenderFn = null;
 
+    static = false;
+
     configsWeakMap = new WeakMap();
+
 
 
     constructor(meta) {
         Object.assign(this, {
             _renderCreator: meta.generateRender,
+            static: meta.static ?? false,
         });
     }
 
@@ -32,15 +36,18 @@ class ShaperPainter {
             collecInstanceConfig,
             afterCollectConfig,
             onPainterCreate,
+            renderMaskBegin,
+            renderMaskEnd,
         } = this._renderCreator(context);
         let cacheContext;
         this._beforeRenderFn = (encoder) => {
             cacheContext = {}
             beforeRender(encoder, this.configs, cacheContext)
         }
-        this._renderFn = (encoder, passEncoder) => {
-            render(encoder, passEncoder, this.configs, cacheContext)
+        this._renderFn = (encoder, passEncoder, maskIndex) => {
+            render(encoder, passEncoder, maskIndex, this.configs, cacheContext)
         }
+        
         this._afterRenderFn = () => {
             afterRender(cacheContext);
             cacheContext = undefined;
@@ -55,6 +62,25 @@ class ShaperPainter {
         this._afterCollectConfig = () => {
             if(afterCollectConfig) {
                 afterCollectConfig(this.configs)
+            }
+        }
+
+        this._renderMaskBeginFn = (mask, encoder, passEncoder) => {
+            if(!renderMaskBegin){
+                return;
+            }
+            const configIndex = this.configs.findIndex(c => c.getInstance() === mask);
+            if(configIndex !== -1) {
+                renderMaskBegin(encoder, passEncoder, this.configs, configIndex,  cacheContext)
+            }
+        }
+        this._renderMaskEndFn = (mask, encoder, passEncoder) => {
+            if(!renderMaskEnd){
+                return;
+            }
+            const configIndex = this.configs.findIndex(c => c.getInstance() === mask);
+            if(configIndex !== -1) {
+                renderMaskEnd(encoder, passEncoder, this.configs, configIndex, cacheContext)
             }
         }
         if(onPainterCreate) {
@@ -105,9 +131,9 @@ class ShaperPainter {
         }
     }
 
-    render(encoder, passEncoder) {
-        if(this.configs.length) {
-            this._renderFn(encoder, passEncoder)
+    render(encoder, passEncoder, maskIndex) {
+        if(this.static || this.configs.length) {
+            this._renderFn(encoder, passEncoder, maskIndex)
         }
     }
 
@@ -115,6 +141,14 @@ class ShaperPainter {
         if(this.configs.length) {
             this._afterRenderFn()
         }
+    }
+
+    renderMaskBegin(mask, encoder, passEncoder) {
+        this._renderMaskBeginFn(mask, encoder, passEncoder);
+    }
+
+    renderMaskEnd(mask, encoder, passEncoder) {
+        this._renderMaskEndFn(mask, encoder, passEncoder);
     }
 
 }
@@ -125,15 +159,32 @@ class PainterRegistry {
     regist(meta) {
         const painter = new ShaperPainter({
             generateRender: meta.generateRender,
+            static: meta.static,
         })
+        console.log(painter.static)
         this._painters.set(meta.name, painter);
         return painter;
     }
 
-    iterate(callback) {
+
+    iterate(callback, filter) {
         this._painters.forEach(painter => {
-            callback(painter)
+            if(!filter || filter(painter)) {
+                callback(painter)
+            }
         });
+    }
+
+    iterateStatic(callback) {
+        this.iterate(callback, (painter) => painter.static)
+    }
+
+    iterateGeneral(callback) {
+        this.iterate(callback, (painter) => !painter.static)
+    }
+
+    iterateOnInstance(instance, callback) {
+        this.iterate(callback, (painter) => !painter.static && painter.getConfigFnMeta(instance))
     }
 
     usePainter(ctor, painterName, configFnName, condition, idx, total) {
@@ -141,8 +192,9 @@ class PainterRegistry {
         if(painter) {
             painter.setConfigFnMeta(ctor, configFnName, condition, idx, total);
         }
-       
     }
+
+
 }
 
 export default PainterRegistry;

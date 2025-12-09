@@ -86,15 +86,31 @@ class Layer extends BaseShape {
             });
         }
     }
+
+    clear() {
+        this._stack.length = 0;
+    }
 }
 
 export default Layer;
 
-export function traverse(layer, callback) {
+export function traverse(layer, callback, callbackLeave) {
     callback(layer);
     if(layer._stack) {
         layer._stack.forEach(instance => {
-            traverse(instance, callback)
+            traverse(instance, callback, callbackLeave)
         });
     };
+    callbackLeave(layer);
 }
+
+export function traverseOnlyLayer(layer, callback, callbackLeave) {
+    if(layer._stack) {
+        callback(layer);
+        layer._stack.forEach(instance => {
+            traverseOnlyLayer(instance, callback, callbackLeave)
+        });
+        callbackLeave(layer);
+    };
+}
+

@@ -1,11 +1,12 @@
 import * as d3 from 'd3-color';
 import { mat3, vec2 } from 'gl-matrix';
-import { TransformMatrix } from '../utils/transform';
+import { updateLocalTransform, decomposeLocalTransform } from '../utils/transform';
 import { Box } from '../utils/box';
 import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 import { addDirtyWork } from '../dirty-work/dirty-work';
 import { JEventTarget } from '../event/event-target';
 
+const TRANSPARENT = 'rgba(0,0,0,0)';
 class BaseShape extends JEventTarget {
     _belongs = null;
 
@@ -13,7 +14,7 @@ class BaseShape extends JEventTarget {
     _scale      = vec2.fromValues(1,1);
     _pivot      = vec2.fromValues(0,0);
     _origin     = vec2.fromValues(0,0);
-    _skew       = vec2.fromValues(0,0);
+    _skew       = vec2.fromValues(0,0); //暂时不要了
     _rotation = 0;
     _cx = 1;
     _sx = 0;
@@ -25,6 +26,12 @@ class BaseShape extends JEventTarget {
     _currentMat = mat3.create();
     _currentMatInv = mat3.create();
     _zIndex = 0; 
+    
+    _maskIndex = 0;
+    _maskLayer = 0;
+    _workAsMask = false;
+
+
     _strokeWidth = 0;
 
     renderable = true;
@@ -57,11 +64,11 @@ class BaseShape extends JEventTarget {
     constructor(configs = {}) {
         super();
         this.visible = configs.visible ?? true;
-        this.fill = (configs.fill || 'transparent');
-        this.stroke = (configs.stroke || 'transparent');
-        this._strokeWidth = configs.strokeWidth || 0;
-        this._strokeLineDash = configs.strokeLineDash || [];
-        this.shadowColor = (configs.shadowColor || 'transparent');
+        this.fill = (configs.fill || TRANSPARENT);
+        this.stroke = (configs.stroke || TRANSPARENT);
+        // this._strokeWidth = configs.strokeWidth || 0;
+        // this._strokeLineDash = configs.strokeLineDash || [];
+        this.shadowColor = (configs.shadowColor || TRANSPARENT);
         this._shadowOffsetX = configs.shadowOffsetX || 0;
         this._shadowOffsetY = configs.shadowOffsetY || 0;
         this._shadowBlur = configs.shadowBlur || 0;
@@ -75,11 +82,10 @@ class BaseShape extends JEventTarget {
         // if(configs.scale) {
         //     this._scale = configs.scale;
         // }
-        // this.flushTransform();
     }
 
     set fill(value) {
-        const c = d3.color(value || 'transparent');
+        const c = d3.color(value || TRANSPARENT);
         this._fill = c;
         if(this.jcanvas) {
             this._materialdirty = true;
@@ -88,7 +94,7 @@ class BaseShape extends JEventTarget {
         }
     }
     set stroke(value) {
-        const c = d3.color(value || 'transparent');
+        const c = d3.color(value || TRANSPARENT);
         this._stroke = c;
         if(this.jcanvas) {
             this._materialdirty = true;
@@ -106,7 +112,7 @@ class BaseShape extends JEventTarget {
     }
 
     set shadowColor(value) {
-        const c = d3.color(value || 'transparent');
+        const c = d3.color(value || TRANSPARENT);
         this._shadowColor = c;
         if(this.jcanvas) {
             this._materialdirty = true;
@@ -171,17 +177,17 @@ class BaseShape extends JEventTarget {
         const stroke = this._stroke.rgb();
         const shadowColor = this._shadowColor.rgb();
         const colors = this._colors;
-        colors[0] = fill.r;
-        colors[1] = fill.g;
-        colors[2] = fill.b;
+        colors[0] = getColorChannel(fill.r);
+        colors[1] = getColorChannel(fill.g);
+        colors[2] = getColorChannel(fill.b);
         colors[3] = fill.opacity;
-        colors[4] = stroke.r;
-        colors[5] = stroke.g;
-        colors[6] = stroke.b;
+        colors[4] = getColorChannel(stroke.r);
+        colors[5] = getColorChannel(stroke.g);
+        colors[6] = getColorChannel(stroke.b);
         colors[7] = stroke.opacity;
-        colors[8] = shadowColor.r;
-        colors[9] = shadowColor.g;
-        colors[10] = shadowColor.b;
+        colors[8] =     getColorChannel(shadowColor.r);
+        colors[9] =     getColorChannel(shadowColor.g);
+        colors[10] =    getColorChannel(shadowColor.b);
         colors[11] = shadowColor.opacity;
     }
 
@@ -212,6 +218,14 @@ class BaseShape extends JEventTarget {
     
     updateBoundingBox() {
 
+    }
+
+    setLocalTransform(m11,m12,m13, m21,m22,m23) {
+        mat3.set(this._localTransform,
+            m11, m21, 0,
+            m12, m22, 0,
+            m13, m23, 1
+        );
     }
 
     updateWorldMatrix(parentMat) {
@@ -247,6 +261,25 @@ class BaseShape extends JEventTarget {
     editBoundary(context) {}
 
     editBoundaryEnd(context) {}
+
+
+    updateLocalTransform() {
+        updateLocalTransform(this);
+    }
+    decomposeLocalTransform() {
+        decomposeLocalTransform(this);
+    }
+    applyLocalTransform(
+        m00, m01,
+        m10, m11,
+        m20, m21, 
+    ) {
+        mat3.set(this._localTransform, m00, m01, 0, m10, m11, 0, m20, m21, 1)
+    }
 }
 
 export default BaseShape;
+
+function getColorChannel(c) {
+    return isNaN(c) ? 0 : c;
+}

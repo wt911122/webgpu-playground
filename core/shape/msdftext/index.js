@@ -3,7 +3,7 @@ import msdftextShader from './msdftext.wgsl?raw';
 
 import { paddingMat3, copyMat3 } from '../../utils/transform';
 import { createBufferWithData } from '../../utils/buffer';
-import { doOverlapBox } from '../../utils/box';
+import { doOverlapBoxBounding } from '../../utils/box';
 
 function MSDFTextPainter() {
     const MAX_OBJECTS = 30000;
@@ -158,9 +158,17 @@ function MSDFTextPainter() {
             const { 
                 fontFamily,
                 content,
+                textAlignVertical,
+                textAlignHorizontal,
+                definedWidth,
+                definedHeight,
+                lineHeight
             } = config.getConfig();
-            
-            const font = context.jcanvas._MSDFfontRegistry.getFont(fontFamily)
+            const fontSize = instance.fontSize;
+            const font = context.jcanvas._MSDFfontRegistry.getFont(fontFamily);
+            const FontImgBaseSize = font.fontjson.info.size;
+            const ratio = fontSize / FontImgBaseSize;
+            config.setPainterConfig('REAL_FONTSIZE', ratio);
 
             const textBuffer = device.createBuffer({
                 label: 'msdf text buffer',
@@ -173,27 +181,29 @@ function MSDFTextPainter() {
             let offset = 0; // Accounts for the values managed by MsdfText internally.
 
             let measurements;
-            // if (options.centered) {
-            //     measurements = measureText(font, text);
+            if (textAlignHorizontal === 'CENTER') {
+                measurements = measureText(font, fontSize, content, lineHeight);
+                const w = definedWidth || measurements.width;
+                measureText(
+                    font,
+                    fontSize,
+                    content,
+                    lineHeight,
+                    (textX, textY, line, char) => {
+                        const lineOffset = (w * 0.5 - measurements.lineWidths[line] * ratio * 0.5) / ratio;
 
-            //     measureText(
-            //         font,
-            //         text,
-            //         (textX, textY, line, char) => {
-            //             const lineOffset =
-            //                 measurements.width * -0.5 -
-            //                 (measurements.width - measurements.lineWidths[line]) * -0.5;
-
-            //             textArray[offset] = textX + lineOffset;
-            //             textArray[offset + 1] = textY + measurements.height * 0.5;
-            //             textArray[offset + 2] = char.charIndex;
-            //             offset += 4;
-            //         }
-            //     );
-            // } else {
+                        textArray[offset] = textX + lineOffset;
+                        textArray[offset + 1] = textY;
+                        textArray[offset + 2] = char.charIndex;
+                        offset += 4;
+                    }
+                );
+            } else {
                 measurements = measureText(
                     font,
+                    fontSize,
                     content,
+                    lineHeight,
                     (textX, textY, line, char) => {
                         textArray[offset] = textX;
                         textArray[offset + 1] = textY;
@@ -201,8 +211,8 @@ function MSDFTextPainter() {
                         offset += 4;
                     }
                 );
-            // }
-                console.log(textArray)
+            }
+                // console.log(textArray)
             textBuffer.unmap();
 
             const bindGroup = device.createBindGroup({
@@ -221,8 +231,9 @@ function MSDFTextPainter() {
             config.setPainterConfig('Font', font);
             config.addBindGroup('TextBindGroup', bindGroup)
 
-            instance.width = measurements.width * instance.fontSize;
-            instance.height = measurements.height * instance.fontSize;
+            instance.textWidth = measurements.width;
+            instance.textHeight = measurements.height;
+            instance.measureWidth();
             instance.updateBoundingBox();
         }
 
@@ -246,13 +257,14 @@ function MSDFTextPainter() {
                 if(!config.enable) {
                     continue;
                 }
-                if(!doOverlapBox(config.getInstance().getBoundingBox(), viewport)) {
+                if(!doOverlapBoxBounding(config.getInstance().getBoundingBox(), viewport)) {
                     continue
                 }
                 const {
-                    _zIndex, mat, fontSize,
+                    _zIndex, mat,
                     _colors,
                 } = config.getConfig();
+                const fontSize = config.getPainterConfig('REAL_FONTSIZE');
                 const uniformBufferOffset = i * uniformBufferSpace;
                 const f32Offset = uniformBufferOffset / 4;
                 const materialValue = uniformValues.subarray(
@@ -280,7 +292,7 @@ function MSDFTextPainter() {
                 if(!config.enable) {
                     continue;
                 }
-                if(!doOverlapBox(config.getInstance().getBoundingBox(), viewport)) {
+                if(!doOverlapBoxBounding(config.getInstance().getBoundingBox(), viewport)) {
                     continue
                 }
                 const font = config.getPainterConfig('Font');
@@ -331,14 +343,19 @@ export default MSDFTextPainter;
 
 function measureText(
     font,
+    fontSize,
     text,
+    lineHeight,
     charCallback
 ) {
     let maxWidth = 0;
     const lineWidths = [];
+    const FontImgBaseSize = font.fontjson.info.size;
+    const ratio = fontSize / FontImgBaseSize;
+    const _lineHeight = lineHeight || font.lineHeight;
 
     let textOffsetX = 0;
-    let textOffsetY = 0;
+    let textOffsetY = (lineHeight - fontSize)/2/ratio;
     let line = 0;
     let printedCharCount = 0;
     let nextCharCode = text.charCodeAt(0);
@@ -352,7 +369,7 @@ function measureText(
             line++;
             maxWidth = Math.max(maxWidth, textOffsetX);
             textOffsetX = 0;
-            textOffsetY += font.lineHeight;
+            textOffsetY += _lineHeight;
         case 13: // CR
             break;
         case 32: // Space
@@ -378,8 +395,8 @@ function measureText(
     maxWidth = Math.max(maxWidth, textOffsetX);
 
     return {
-        width: maxWidth,
-        height: lineWidths.length * font.lineHeight,
+        width: maxWidth*ratio,
+        height: lineWidths.length * _lineHeight,
         lineWidths,
         printedCharCount,
     };

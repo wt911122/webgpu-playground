@@ -2,11 +2,19 @@ import Shape from '../layer/shape';
 import { mat3, vec2 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
 import { parse } from '../path-utils';
+import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 
 class MSDFText extends Shape {
     _fontFamily = undefined;
     _content = '';
-    _fontSize = 1/256;
+    _fontSize = 12;
+    _textAlignHorizontal = 'LEFT';
+    _textAlignVertical = 'CENTER';
+    _lineHeight = undefined;
+    _autoWrap = false;
+    _ellipseEnd = false;
+    textWidth = 0;
+    textHeight = 0;
     
     w = 0;
     h = 0;
@@ -66,15 +74,23 @@ class MSDFText extends Shape {
     set position(value){
         vec2.copy(this._position, value);
     }
+    
 
     constructor(configs) {
         super(configs);
-        const { x, y, fontFamily, content, fontSize } = configs;
+        const { x, y, width, height, textAlignHorizontal, textAlignVertical, lineHeight, fontFamily, content, fontSize, autoWrap, ellipseEnd } = configs;
         this._fontFamily = fontFamily;
         this._content = content;
         this._fontSize = fontSize || 1/256;
         this.x = x ?? 0;
         this.y = y ?? 0;
+        this.definedWidth = width ?? 0;
+        this.definedHeight = height ?? 0;
+        this._textAlignHorizontal = textAlignHorizontal ?? 'LEFT';
+        this._textAlignVertical = textAlignVertical ?? 'CENTER';
+        this._lineHeight = lineHeight;
+        this._autoWrap = autoWrap ?? false;
+        this._ellipseEnd = ellipseEnd ?? false;
         this.flushTransform();
         // mat3.translate(this._localTransform, this._localTransform, [x, y]);
     }
@@ -89,7 +105,7 @@ class MSDFText extends Shape {
     
     set content(val) {
         this._content = val;
-        this.markFontDirty();
+        this.markGeoDirty();
     }
     get content() {
         return this._content;
@@ -97,10 +113,14 @@ class MSDFText extends Shape {
 
     set fontSize(val) {
         this._fontSize = val;
-        this.markFontDirty();
     }
     get fontSize() {
         return this._fontSize;
+    }
+
+    measureWidth() {
+        this.w = Math.max(this.definedWidth || 0, this.textWidth);
+        this.h = Math.max(this.definedHeight || 0, this.textHeight);
     }
 
     updateBoundingBox() {
@@ -110,6 +130,7 @@ class MSDFText extends Shape {
         vec2.set(lc.RB, w, h);
         vec2.set(lc.LB, 0, h);
         vec2.set(lc.RT, w, 0);
+        vec2.set(this._origin, w/2, h/2);
 
         const { LT, RB, LB, RT } = this._boundingbox;
         vec2.transformMat3(LT, lc.LT, this._currentMat)
@@ -138,12 +159,25 @@ class MSDFText extends Shape {
         return false;
     }
 
-    markFontDirty() {
-         if(this.jcanvas) {
-            this._geodirty = true;
-            this.addDirtyWork(this._bindFlushFontPath)
-            this.addDirtyWork(this.jcanvas._bindMeshAndRender);
-        }
+    rotateStart(context) {
+        Object.assign(context, {
+            rotation: this._rotation,
+        });
+    }
+
+    rotate(context) {
+        const { cp, vecf, vect, rotation } = context;
+        const x = this.width/2;
+        const y = this.height/2;
+        
+        const v1 = [vecf[0] - x, vecf[1] - y];
+        const v2 = [vect[0] - x, vect[1] - y];
+        const angleInRadians = calculateAngle(v1, v2);
+        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        this.rotation = rotation + angleInRadians;
+        this.flushTransform(true);
+        this.updateWorldMatrix(this.parent.matrix)
+        this.markMaterialDrity();
     }
 
     _updateSkew() {
@@ -162,6 +196,10 @@ class MSDFText extends Shape {
         
         const lt = this._localTransform;
         const position = this._position;
+        const origin = this._origin
+        
+        const ox = -origin[0];
+        const oy = -origin[1];
 
         // get the matrix values of the container based on its this properties..
         lt[0] = this._cx;
@@ -169,19 +207,41 @@ class MSDFText extends Shape {
         lt[3] = this._cy;
         lt[4] = this._sy;
 
-        lt[6] = position[0];
-        lt[7] = position[1];
+        lt[6] = position[0] 
+            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
+            - ox; // Remove origin to maintain position
+        lt[7] = position[1]
+            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
+            - oy; // Remove origin to maintain position
 
     }
 
     getConfig() {
         const { 
-            _zIndex, _colors, _currentMat, _content, _fontSize, _fontFamily
+            _zIndex, _colors, 
+            _currentMat, 
+            _content, 
+            _fontSize, 
+            _fontFamily,
+            _textAlignVertical,
+            _textAlignHorizontal,
+            _lineHeight,
+            _autoWrap,
+            _ellipseEnd,
+            definedWidth, 
+            definedHeight,
         } = this;
         return {
+            definedWidth, 
+            definedHeight,
             fontFamily: _fontFamily,
             content: _content,
             fontSize: _fontSize,
+            textAlignVertical: _textAlignVertical,
+            textAlignHorizontal: _textAlignHorizontal,
+            lineHeight: _lineHeight,
+            autoWrap: _autoWrap,
+            ellipseEnd: _ellipseEnd,
             _zIndex, 
             _colors, 
             mat: paddingMat3(_currentMat)

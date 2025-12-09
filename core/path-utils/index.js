@@ -10,45 +10,48 @@ export function parse(d) {
     const box = [Infinity, Infinity, -Infinity, -Infinity];
     const subpath = [];
     let currentPoint;
+    try{
+        const control = []
+        d = d.replaceAll(/Lnan\s+nan\s*/g, '');
+        const commands = _parsePath(d);
+        commands.forEach((command) => {
+            const code = command.code;
+            switch (code) {
+                case 'M':
+                    parseM(command, subpath, control, box);
+                    break;
+                case 'L':
+                case 'V':
+                case 'H':
+                    parseL(command, subpath, control, box);
+                    break;
+                case 'C':
+                    parseC(command, subpath, control, box);
+                    break;
+                case 'S':
+                    parseS(command, subpath, control, box);
+                    break;
+                case 'Q':
+                    parseQ(command, subpath, control, box);
+                    break;
+                case 'T':
+                    parseT(command, subpath, control, box);
+                    break;
+                case 'A':
+                    parseA(command, subpath, control, box);
+                    break;
+                case 'Z':
+                    parseZ(command, subpath, control, box);
+                    subpath.closePath = true;
+                    break;
+            }
 
-    const control = []
-
-    const commands = _parsePath(d);
-    commands.forEach((command) => {
-        const code = command.code;
-        switch (code) {
-            case 'M':
-                parseM(command, subpath, control, box);
-                break;
-            case 'L':
-            case 'V':
-            case 'H':
-                parseL(command, subpath, control, box);
-                break;
-            case 'C':
-                parseC(command, subpath, control, box);
-                break;
-            case 'S':
-                parseS(command, subpath, control, box);
-                break;
-            case 'Q':
-                parseQ(command, subpath, control, box);
-                break;
-            case 'T':
-                parseT(command, subpath, control, box);
-                break;
-            case 'A':
-                parseA(command, subpath, control, box);
-                break;
-            case 'Z':
-                parseZ(command, subpath, control, box);
-                subpath.closePath = true;
-                break;
-        }
-
-    })
-    // console.log(d, subpath);
-    return { path: subpath, box };
+        })
+        // console.log(d, subpath);
+        return { path: subpath, box };
+    } catch(err) {
+        return null;
+    }
 }
 function calcBox(box, x, y) {
     box[0] = Math.min(box[0], x);

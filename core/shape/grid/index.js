@@ -1,5 +1,10 @@
 import gridShader from './grid.wgsl?raw';
 import { createBufferWithData } from '../../utils/buffer';
+import { 
+    GENERAL_DEPTH_STENCIL_CONFIG,
+    MASK_BEGIN_DEPTH_STENCIL_CONFIG,
+    MASK_END_DEPTH_STENCIL_CONFIG,
+} from '../../utils/mask-depthStencil-config';
 
 function GridPainter() { 
     const VERTEX_ARRAY = new Float32Array([
@@ -33,7 +38,7 @@ function GridPainter() {
             bindGroupLayouts: [ bindGroupLayout ],
         });
         const renderPipeline = device.createRenderPipeline({
-            label: 'circle pipeline',
+            label: 'grid pipeline',
             layout: pipelineLayout,
             vertex: {
                 module: program,
@@ -56,23 +61,19 @@ function GridPainter() {
                     blend: {
                         color: {
                             operation: 'add',
-                            srcFactor: 'src-alpha',
+                            srcFactor: 'one',
                             dstFactor: 'one-minus-src-alpha'
                         },
                         alpha: {
                             operation: 'add',
-                            srcFactor: 'src-alpha',
+                            srcFactor: 'one',
                             dstFactor: 'one-minus-src-alpha'
                         }
                     }
                 }],
 
             },
-            depthStencil: {
-                depthWriteEnabled: true,
-                depthCompare: 'less',
-                format: 'depth24plus',
-            },
+            depthStencil: GENERAL_DEPTH_STENCIL_CONFIG,
         });
         
 
@@ -87,8 +88,7 @@ function GridPainter() {
 
         function beforeRender() {}
 
-        function render(encoder, passEncoder, configs, cacheContext) {
-            const { uniformValues, transferBuffer } = cacheContext;
+        function render(encoder, passEncoder) {
             passEncoder.setPipeline(renderPipeline);
             passEncoder.setVertexBuffer(0, vertexBuffer);
             passEncoder.setIndexBuffer(indicesBuffer, "uint16");
@@ -113,6 +113,7 @@ function GridPainter() {
     return {
         name: 'GridPainter',
         generateRender,
+        static: true,
         // Ctor: []
     }
 }

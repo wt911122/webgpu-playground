@@ -1,5 +1,5 @@
 import { STRIDE_POINT, JOINT_TYPE, ALIGNMENT } from './enums';
-import polylineShader from './polyline-next.wgsl?raw';
+import polylineShader from './polyline-copy.wgsl?raw';
 import { paddingMat3, copyMat3 } from '../../utils/transform';
 
 const Location = {
@@ -234,10 +234,10 @@ function PolylinePainter() {
             } = config.getConfig();
             const { pointsBuffer, travelBuffer } = preparePointsBuffer(
                 path, 
-                JointType.JOINT_MITER,
-                JointType.JOINT_CAP_BUTT, 
+                JointType.JOINT_BEVEL,
+                JointType.CAP_BUTT, 
                 JointType.CAP_BUTT, _strokeAlignment * _strokeWidth);  
-            // console.log(pointsBuffer, travelBuffer);
+            console.log(pointsBuffer, travelBuffer);
             const lastInstanceCount = config.getPainterConfig('InstanceCount');
             const currInstanceCount = pointsBuffer.length / strideFloats - 3
             config.setPainterConfig('InstanceCount', currInstanceCount);
@@ -407,6 +407,7 @@ function preparePointsBuffer(
     capType, 
     endJoint,
 ) {
+    console.log(points)
     if(Array.isArray(points[0])) {
         const pointsBuffer = [];
         const travelBuffer = [];
@@ -435,6 +436,67 @@ function preparePointsBuffer(
 
 }
 
+function _preparePointsBuffer(
+    points, 
+    jointType, 
+    capType, 
+    endJoint,
+) {
+    const pointsBuffer = [];
+    const travelBuffer = [];
+    
+    const joints = [];
+    // const points = [];
+    const len = points.length;
+    let prevX = points[2];
+    let prevY = points[3];
+
+    pointsBuffer.push(prevX, prevY, JOINT_TYPE.NONE);
+    joints.push(JOINT_TYPE.NONE)
+    let dist = 0;
+    for (let i = 0; i < len; i += 2) {
+        if (i > 1) {
+            dist += Math.sqrt(
+            Math.pow(points[i] - points[i - 2], 2) +
+                Math.pow(points[i + 1] - points[i + 1 - 2], 2),
+            );
+        }
+        travelBuffer.push(dist);
+
+        const x1 = points[i];
+        const y1 = points[i + 1];
+        let joint = jointType;
+
+        if (i === 0) {
+            if (capType !== JointType.CAP_ROUND) {
+               joint += capType;
+            }
+        }
+        if (i + 2 >= len) {
+            joint += endJoint;
+        } else if (i + 4 >= len) {
+            if (capType === JOINT_TYPE.CAP_ROUND) {
+                joint = JOINT_TYPE.JOINT_CAP_ROUND;
+            } if (capType === JOINT_TYPE.CAP_BUTT) {
+                joint = JOINT_TYPE.JOINT_CAP_BUTT;
+            } if (capType === JOINT_TYPE.CAP_SQUARE) {
+                joint = JOINT_TYPE.JOINT_CAP_SQUARE;
+            }
+        }
+        joints.push(joint)
+        pointsBuffer.push(x1, y1, joint)
+    }
+    joints.push(JOINT_TYPE.NONE)
+    pointsBuffer.push(points[len - 4], points[len - 3], JOINT_TYPE.NONE);
+
+
+    return { 
+        pointsBuffer,
+        travelBuffer,
+    }
+} 
+
+/* 
 function _preparePointsBuffer(
     incommingpoints, 
     jointType, 
@@ -519,7 +581,7 @@ function _preparePointsBuffer(
         pointsBuffer,
         travelBuffer,
     }
-}
+}*/
 
 function createFloatBufferAtCreate(label, device, usage, arr, size) {
     const _size = size || roundUp(arr.length * Float32Array.BYTES_PER_ELEMENT, 4);

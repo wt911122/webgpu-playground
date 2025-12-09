@@ -18,6 +18,8 @@ class Path extends Shape {
     _cy = 0;
     _sy = 1;
 
+    _strokeWidth = 0;
+
     get x() {
         return this._position[0];
     }
@@ -101,20 +103,38 @@ class Path extends Shape {
 
     constructor(configs) {
         super(configs);
+        const { x, y, rotation } = configs;
         this.path = configs.path;
+        this._strokeWidth = configs.strokeWidth || 0;
+        this.x = x ?? 0;
+        this.y = y ?? 0;
+        this.rotation = rotation ?? 0; 
+        // this.flushTransform(true);
+        this.updateLocalTransform()
     }
 
 
     set path(value) {
         const lc = this._localBoundingbox;
         if(value) {
-            const { path, box } = parse(value);
-            this._path = path;
-            const [a, b, c, d] = box;
-            vec2.set(lc.LT, a, b);
-            vec2.set(lc.RB, c, d);
-            vec2.set(lc.LB, a, d);
-            vec2.set(lc.RT, c, b);
+            const result = parse(value);
+            if(result) {
+                const { path, box } =result;
+                this._path = path;
+                const [a, b, c, d] = box;
+                vec2.set(lc.LT, a, b);
+                vec2.set(lc.RB, c, d);
+                vec2.set(lc.LB, a, d);
+                vec2.set(lc.RT, c, b);
+            } else {
+                this._path = [];
+                // this._contentBox = [0,0,0,0];
+                vec2.set(lc.LT, 0, 0);
+                vec2.set(lc.RB, 0, 0);
+                vec2.set(lc.LB, 0, 0);
+                vec2.set(lc.RT, 0, 0);
+            }
+            
             // this._contentBox = box;
         } else {
             this._path = [];
@@ -124,8 +144,8 @@ class Path extends Shape {
             vec2.set(lc.LB, 0, 0);
             vec2.set(lc.RT, 0, 0);
         }
-        vec2.set(this._origin, this.width/2 + lc.LT[0], this.height/2 + lc.LT[1]) 
-        this.flushTransform();
+        vec2.set(this._pivot, this.width/2 + lc.LT[0], this.height/2 + lc.LT[1]) 
+        // this.flushTransform();
         // console.log(this._path)
         this.markGeoDirty();
     }
@@ -265,7 +285,6 @@ class Path extends Shape {
             path, _strokeWidth, _zIndex, _currentMat, _colors,
             _strokeLineDash
         } = this;
-
         return {
             path: path,
             _strokeWidth,
@@ -284,10 +303,11 @@ class Path extends Shape {
                 condition: (instance) => instance.path.closePath && instance._fill.opacity !== 0,
                 painter: 'MeshPainter',
                 configGetter: 'getMeshConfig'
-            }, {
+            }, 
+            {
                 ctor: Path,
                 condition: (instance) => instance._strokeWidth > 0 && instance._stroke.opacity !== 0 ,
-                painter: 'PolylinePainter',
+                painter: 'SmoothPolyline',
                 configGetter: 'getPolylineConfig'
             }
         ];

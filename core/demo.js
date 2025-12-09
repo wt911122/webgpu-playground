@@ -15,6 +15,14 @@ import JCanvas from './jcanvas';
 import { vec2, mat3 } from 'gl-matrix';
 import opentype from 'opentype.js';
 
+// import demoFigmaJson from './demo-figmajson.json';
+import { iterator } from './resolve-figmajson';
+// import figmademojson from './figmademo.json';
+// import figmademojsonBig from './demo-figmajson-big.json';
+// import untitlefigmajson from './untitlefigmajson2.json';
+// import arrowFigmajson from './arrow-figmajson.json';
+// import untitlefigmajson from './untitlefigmajson2.json';
+import figmademojsonBig2 from './demo-figmajson-big2.json';
 
 (async function () {
     // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
@@ -43,7 +51,7 @@ import opentype from 'opentype.js';
     const Ellipse = jc.getShapeCtor('Ellipse');
     const Rectangle = jc.getShapeCtor('Rectangle');
     const Path = jc.getShapeCtor('Path');
-    const PolyLine = jc.getShapeCtor('PolyLine');
+    // const PolyLine = jc.getShapeCtor('PolyLine');
     const Text = jc.getShapeCtor('Text');
     const MSDFText = jc.getShapeCtor('MSDFText');
 
@@ -60,6 +68,202 @@ import opentype from 'opentype.js';
     // const [ PolyLine ] = Ctors2;
 
     const stage = jc.stage;
+    const t = {};
+    //  iterator(demoFigmaJson, t);
+    // console.log(demoFigmaJson, t)
+    // const json = figmademojson.nodes["10992:224682"].document;
+    // const json = figmademojsonBig.nodes["10992:224704"].document;
+    // const json = untitlefigmajson.nodes["179:1048"].document;
+    // const json = arrowFigmajson.nodes["181:1108"].document;
+    // const json = arrowFigmajson.nodes["181:1108"].document;
+    // iterator(json, t)
+    // console.log(json, t)
+    function iteratorCreate(data, group, firstLayer, initx, inity) {
+        let shape;
+        const type = data.type;
+        if(type === 'Group') {
+            shape = Group();
+            group.addToStack(shape);
+            shape.rotation = data.rotation;  
+            shape.hasMask = data.clipsContent;
+            // console.log(data.clipsContent)
+        } else if (type === 'Rectangle' || type === 'GroupRectangle' || type === 'FrameRectangle') {
+            shape = Rectangle({ 
+                x: data.x,
+                y: data.y,
+                width: data.width,
+                height: data.height,
+                fill: data.fill,
+                stroke: data.stroke,
+                rotation: data.rotation,
+                strokeWidth: {
+                    left: data.strokeWidth[0],
+                    top: data.strokeWidth[1],
+                    right: data.strokeWidth[2],
+                    bottom: data.strokeWidth[3],
+                },
+                borderRadius: {
+                    topLeft: data.borderRadius[0],
+                    topRight: data.borderRadius[1],
+                    bottomLeft: data.borderRadius[2],
+                    bottomRight: data.borderRadius[3],
+                }
+            });
+            if(type === 'Rectangle') {
+
+                // shape.origin = [0, data.height/2]
+                // shape.flushTransform();
+                // if(data.constraints.horizontal === 'LEFT_RIGHT') {
+                //     shape.x += group.width/2;
+                // }
+                // if(data.constraints.vertical === 'TOP') {
+                //     shape.y += group.width/2;
+                // }
+            }
+            if(type === 'FrameRectangle' && group.hasMask) {
+                // console.log('setmask')
+                group.setMask(shape);
+            }
+            
+            group.addToStack(shape);
+        } else if (type === 'Path') {
+            const pathData = data;
+            const rt = data.relativeTransform;
+            data.paths.forEach(p => {
+                shape = Path({
+                    // x: pathData.x,
+                    // y: pathData.y,
+                    // rotation: pathData.rotation,
+                    path: p.data,
+                    fill: p.type === 'fill' ? pathData.fill : '',
+                    stroke: p.type === 'stroke' ? pathData.stroke : '',
+                    strokeWidth: pathData.strokeWidth,
+                });
+                shape.applyLocalTransform(
+                    rt[0][0],rt[1][0],
+                    rt[0][1],rt[1][1],
+                    rt[0][2],rt[1][2]);
+                shape.decomposeLocalTransform();
+                // shape.origin = [pathData.width/2,pathData.height/2]
+                // shape.flushTransform(true);
+                group.addToStack(shape);
+            });
+        } else if (type === 'Text') {
+            shape = MSDFText({
+                content: data.content,
+                x: data.x,
+                y: data.y,
+                width: data.width,
+                height: data.height,
+                textAlignHorizontal: data.textAlignHorizontal,
+                textAlignVertical: data.textAlignVertical,
+                lineHeight: data.lineHeight,
+                fill: data.color,
+                fontFamily: 'PingFangSC-Regular',
+                fontSize: data.fontSize,
+                autoWrap: data.autoWrap,
+                ellipseEnd: data.ellipseEnd,
+            })
+            group.addToStack(shape);
+        } else if(type === 'ELLIPSE') {
+            shape = Ellipse({ 
+                cx: data.x,
+                cy: data.y,
+                width: data.width,
+                height: data.height,
+                fill: data.fill,
+                stroke: data.stroke,
+                // rotation: data.rotation,
+                strokeWidth: data.strokeWidth,
+            });
+            group.addToStack(shape);
+        }
+        if(shape) {
+             shape.id = data.id;
+        }
+       
+        
+        if(data.children) {
+            data.children.map((child) => {
+                iteratorCreate(child, shape);
+            });
+            shape.updateWorldMatrix();
+            shape.origin = vec2.fromValues(shape.width/2, shape.height/2);
+            shape.x = firstLayer ? initx: data.x;
+            shape.y = firstLayer ? inity: data.y;
+            shape.flushTransform();
+        } 
+    }
+
+    // iteratorCreate(t, stage, true, 10, 10);
+    // iteratorCreate(t, stage, true, 1000, 10);
+    // iteratorCreate(t, stage, true, 10, 800);
+
+    // function generateByFigmaFile(filejson) {
+    //     for(let key in filejson) {
+    //         const docjson = filejson[key].document;
+    //         generateByFigmaDocument(docjson);
+    //     }
+    // }
+    function generateByFigmaDocument(docjson) {
+        const t = {};
+        iterator(docjson, t);
+        iteratorCreate(t, stage);
+    }
+
+    function generateByFigmaCanvas(canvasjson) {
+       
+        for(let docjson of canvasjson.children) {
+            generateByFigmaDocument(docjson)
+        }
+    }
+
+    function generateByFigma(json) {
+        for(let key in json.nodes) {
+            const node = json.nodes[key];
+            generateByFigmaCanvas(node.document)
+        }
+    }
+
+    function loadFromFigma(json) {
+        if(json.type === "FRAME") {
+            generateByFigmaDocument(json);
+        }
+        for(let key in json.nodes) {
+            const node = json.nodes[key];
+            if(node.document.type === 'CANVAS') {
+                generateByFigmaCanvas(node.document);
+            }
+            if(node.document.type ===  "FRAME") {
+                generateByFigmaDocument(node.document);
+            }
+        }
+    }
+    // generateByFigma(figmademojsonBig);
+
+    const showFigmaButton = document.getElementById('showFigma');
+    const filekeyinput = document.getElementById('filekey');
+    const nodeidinput = document.getElementById('nodeid');
+    const FIGMA_TOKENinput = document.getElementById('FIGMA_TOKEN');
+    showFigmaButton.addEventListener('click', () => {
+        fetch(`https://api.figma.com/v1/files/${filekeyinput.value}/nodes?ids=${nodeid.value}&geometry=paths`, {
+            headers: {
+                'X-Figma-Token': FIGMA_TOKENinput.value
+            }
+            })
+            .then(response => response.json())
+            .then(data => {
+                stage.clear();
+                generateByFigma(data);
+                // console.log(JSON.stringify(data, null, 2));
+            });
+    })
+    // generateByFigma(figmademojsonBig2)
+
+    console.log(stage); 
+    
+
+    
     //  const circle = Ellipse({
     //     cx: 100,
     //     cy: 50,
@@ -119,23 +323,23 @@ setBlendConstant().
         i++;
     } */
 
-    const msdftext = MSDFText({
-        x: 200, y: 50,
-        fontFamily: 'PingFangSC-Regular',
-        fontSize: 1/3,
-        fill: 'black',
-        content: `11 月 11 日消息，多个活动组织联合宣布，将于 11 月 15 日发起一场名为「特斯拉狙击」
-（Tesla Takedown）的全球协调行动日，呼吁世界各地参与者共同抗议特斯拉首席执行官埃隆・马斯克（Elon Musk）新近获批的 2025 年绩效奖励计划。
-今年早些时候，部分反特斯拉人士曾对多家特斯拉门店实施涂鸦、燃烧弹袭击甚至枪击，以表达对马斯克的不满。
-此次抗议行动的直接导火索，是特斯拉股东近期批准的马斯克 2025 年绩效奖励计划——这一里程碑式的薪酬方案若全部兑现，
-将使马斯克成为全球首位资产达万亿美元（$1 trillion）的个人。
-组织方表示，此次运动是一场非暴力抗议，旨在反对他们所认为的「过度集中于个人手中的企业权力与巨额财富」。
-据「特斯拉狙击」组织者介绍，11 月 15 日的抗议行动恰逢其首次大规模周末行动的九个月纪念日。
-在一份公开声明中，该团体号召支持者以「拒绝万亿富豪」
-（#NoTrillionaires）为口号，「在你所在的社区发起或加入一场抗议行动」，并将此次活动定位为对亿万富翁深度介入政治与科技领域的明确抵制。（来源：新浪财经）`
-    })
+//     const msdftext = MSDFText({
+//         x: 200, y: 50,
+//         fontFamily: 'PingFangSC-Regular',
+//         fontSize: 1/3,
+//         fill: 'black',
+//         content: `11 月 11 日消息，多个活动组织联合宣布，将于 11 月 15 日发起一场名为「特斯拉狙击」
+// （Tesla Takedown）的全球协调行动日，呼吁世界各地参与者共同抗议特斯拉首席执行官埃隆・马斯克（Elon Musk）新近获批的 2025 年绩效奖励计划。
+// 今年早些时候，部分反特斯拉人士曾对多家特斯拉门店实施涂鸦、燃烧弹袭击甚至枪击，以表达对马斯克的不满。
+// 此次抗议行动的直接导火索，是特斯拉股东近期批准的马斯克 2025 年绩效奖励计划——这一里程碑式的薪酬方案若全部兑现，
+// 将使马斯克成为全球首位资产达万亿美元（$1 trillion）的个人。
+// 组织方表示，此次运动是一场非暴力抗议，旨在反对他们所认为的「过度集中于个人手中的企业权力与巨额财富」。
+// 据「特斯拉狙击」组织者介绍，11 月 15 日的抗议行动恰逢其首次大规模周末行动的九个月纪念日。
+// 在一份公开声明中，该团体号召支持者以「拒绝万亿富豪」
+// （#NoTrillionaires）为口号，「在你所在的社区发起或加入一场抗议行动」，并将此次活动定位为对亿万富翁深度介入政治与科技领域的明确抵制。（来源：新浪财经）`
+//     })
 
-    stage.addToStack(msdftext);
+//     stage.addToStack(msdftext);
 
     // const ellipse2 = Ellipse({
     //     cx: 500,
@@ -289,37 +493,93 @@ setBlendConstant().
     // stage.addToStack(ellipse);
 
 
-    const path2 = Path({
-        path: `M 10,30
-           A 20,20 0,0,1 50,30
-           A 20,20 0,0,1 90,30
-           Q 90,60 50,90
-           Q 10,60 10,30 
-           M 10 80 
-           C 40 10, 65 10, 95 80 
-           S 150 150, 180 80`,
-        // fill: 'rgb(0, 255, 255)',
-        stroke: 'black',
-        strokeWidth: 2,
-    })
-    stage.addToStack(path2);
+    // const path2 = Path({
+    //     path: `M 10,30
+    //        A 20,20 0,0,1 50,30
+    //        A 20,20 0,0,1 90,30
+    //        Q 90,60 50,90
+    //        Q 10,60 10,30 
+    //        M 10 80 
+    //        C 40 10, 65 10, 95 80 
+    //        S 150 150, 180 80`,
+    //     // fill: 'rgb(0, 255, 255)',
+    //     stroke: 'black',
+    //     strokeWidth: 2,
+    // })
+    // stage.addToStack(path2);
+    //  const path2 = Path({
+    //     path: `M 10,30
+    //        A 20,20 0,0,1 50,30
+    //        A 20,20 0,0,1 90,30`,
+    //     // fill: 'rgb(0, 255, 255)',
+    //     stroke: 'black',
+    //     strokeWidth: 2,
+    // })
+    // stage.addToStack(path2);
 
     
     // const rect = Rectangle({
-    //     cx: 220,
-    //     cy: 300,
+    //     x: 20,
+    //     y: 30,
     //     width: 180,
     //     height: 100,
     //     fill: 'rgb(0, 255, 255)',
     //     stroke: 'black',
     //     strokeWidth: 2,
     //     borderRadius: 12,
-    //     strokeLineDash: [1, 10]
+    //     rotation:  Math.PI/180*-90
     // });
     // stage.addToStack(rect);
     // rect.addEventListener('mouseenter', onMouseEnter)
     // rect.addEventListener('mouseleave', onMouseLeave)
 
+
+    /* const rect1 = Rectangle({
+        x: 100,
+        y: 200,
+        width: 480,
+        height: 220,
+        fill: 'rgb(0, 255, 255)',
+        stroke: 'black',
+        strokeWidth: 2,
+        borderRadius: 12,
+        // rotation:  Math.PI/180*-90
+    });
+    stage.addToStack(rect1);
+
+    const rect2 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 220,
+        height: 180,
+        fill: 'red',
+        stroke: 'black',
+        strokeWidth: 2,
+        borderRadius: 12,
+        // rotation:  Math.PI/180*-90
+    });
+    const rect3 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 180,
+        fill: 'yellow',
+        stroke: 'black',
+        strokeWidth: 2,
+        borderRadius: 12,
+        // rotation:  Math.PI/180*-90
+    });
+
+    const group1 = Group();
+    group1.setMask(rect2);
+    group1.addToStack(rect2);
+    group1.addToStack(rect3);
+    group1.updateWorldMatrix();
+    group1.origin = vec2.fromValues(group1.width/2, group1.height/2);
+    group1.x = 120;
+    group1.y = 220;
+    group1.flushTransform();
+    stage.addToStack(group1); */
 
     // const rect2 = Rectangle({
     //     cx: 420,
@@ -377,12 +637,12 @@ setBlendConstant().
 
     // const line = PolyLine({
     //     path: [
+    //         200, 20, 
     //         200, 200, 
-    //         200, 300, 
-    //         400, 500, 
-    //         400, 600, 
-    //         600, 700,
-    //         800, 700
+    //         400, 300, 
+    //         400, 400, 
+    //         600, 500,
+    //         200, 510
     //     ],
     //     strokeWidth: 4,
     //     stroke: 'black',
@@ -397,7 +657,7 @@ setBlendConstant().
     //     ],
     //     strokeWidth: 2,
     //     stroke: 'blue',
-    //     lineDash: [2, 10]
+    //     // lineDash: [2, 10]
     // })
     // stage.addToStack(line2);
 
@@ -609,7 +869,7 @@ setBlendConstant().
         group.origin = vec2.fromValues(group.width/2, group.height/2);
         group.flushTransform();
         group.updateWorldMatrix(stage.matrix);
-    });*/
+    });
 
     function deserializeNode(data, parent) {
         const { type, attributes, children } = data;
@@ -646,7 +906,7 @@ setBlendConstant().
         
     }
 
-    fetch('/assets/PingFangSC-main/ttf/PingFangSC-Regular.ttf')
+    /* fetch('/assets/PingFangSC-main/ttf/PingFangSC-Regular.ttf')
         .then(async res => {
             const buffer = await res.arrayBuffer();
             const font = opentype.parse(buffer);
@@ -664,7 +924,7 @@ Graphics Processing Units, or `,
             stage.updateWorldMatrix();
             para.addEventListener('mouseenter', onMouseEnter)
             para.addEventListener('mouseleave', onMouseLeave)
-        })
+        })*/
 
     function kebabToCamelCase(str) {
         return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
@@ -703,4 +963,112 @@ Graphics Processing Units, or `,
             children,
         };
     }
-})()
+})();
+
+
+(function() {
+    // 从变换参数计算变换矩阵
+    function updateLocalTransform(params) {
+        const { _position, _scale, _pivot, _origin, _skew, _rotation } = params;
+        const { _localTransform } = params;
+        
+        // 将角度转换为弧度
+        const rad = _rotation * Math.PI / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        
+        // 组合变换矩阵
+        // 变换顺序: 平移到origin -> 平移pivot -> 缩放 -> skew -> 旋转 -> 平移-pivot -> 平移-origin -> 平移position
+        
+        // 计算最终的变换矩阵元素
+        const a = cos * _scale[0];
+        const b = sin * _scale[0];
+        const c = -sin * _scale[1];
+        const d = cos * _scale[1];
+        
+        // 添加skewX
+        const finalA = a;
+        const finalB = b;
+        const finalC = c;
+        const finalD = d;
+        
+        // 计算平移部分
+        const pivotX = _pivot[0] + _origin[0];
+        const pivotY = _pivot[1] + _origin[1];
+        
+        const tx = _position[0] - _origin[0] - (finalA * pivotX + finalC * pivotY - pivotX);
+        const ty = _position[1] - _origin[1] - (finalB * pivotX + finalD * pivotY - pivotY);
+        
+        // 设置矩阵 (列主序)
+        mat3.set(_localTransform,
+            finalA, finalB, 0,
+            finalC, finalD, 0,
+            tx, ty, 1
+        );
+        
+        return _localTransform;
+    }
+
+    // 从变换矩阵分解得到变换参数
+    function decomposeLocalTransform(params) {
+        const { _localTransform } = params;
+        
+        // 提取矩阵元素 (列主序)
+        const a = _localTransform[0];
+        const b = _localTransform[1];
+        const c = _localTransform[3];
+        const d = _localTransform[4];
+        const tx = _localTransform[6];
+        const ty = _localTransform[7];
+        
+        // 分解矩阵
+        // 计算缩放和旋转
+        const scaleX = Math.sqrt(a * a + b * b);
+        const scaleY = Math.sqrt(c * c + d * d);
+        
+        // 计算旋转角度
+        let rotation = Math.atan2(b, a) * 180 / Math.PI;
+        
+        // 归一化方向
+        const signX = scaleX !== 0 ? 1 : 1;
+        const signY = scaleY !== 0 ? (a * d - b * c < 0 ? -1 : 1) : 1;
+        
+        const finalScaleX = scaleX * signX;
+        const finalScaleY = scaleY * signY;
+        
+        // 设置结果 (假设origin和pivot保持不变，只更新position)
+        vec2.set(params._scale, finalScaleX, finalScaleY);
+        params._rotation = rotation;
+        
+        // 计算position (考虑pivot和origin)
+        const pivotX = params._pivot[0] + params._origin[0];
+        const pivotY = params._pivot[1] + params._origin[1];
+        
+        const posX = tx + params._origin[0] + (a * pivotX + c * pivotY - pivotX);
+        const posY = ty + params._origin[1] + (b * pivotX + d * pivotY - pivotY);
+        
+        vec2.set(params._position, posX, posY);
+        
+        return params;
+    }
+
+    // 使用示例
+    const transformParams = {
+        _position: vec2.fromValues(180, 90),
+        _scale: vec2.fromValues(2, 15),
+        _pivot: vec2.fromValues(10, 10),
+        _origin: vec2.fromValues(20, 30),
+        _rotation: 75,
+        _localTransform: mat3.create()
+    };
+
+    // 从参数更新矩阵
+    updateLocalTransform(transformParams);
+    console.log('Transform Matrix:', transformParams._localTransform);
+
+    // 从矩阵分解参数
+    decomposeLocalTransform(transformParams);
+    console.log('Position:', transformParams._position);
+    console.log('Scale:', transformParams._scale);
+    console.log('Rotation:', transformParams._rotation);
+})();

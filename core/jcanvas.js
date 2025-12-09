@@ -9,14 +9,15 @@ import { Box } from './utils/box';
 import IndexRBush from './utils/indexRBush.js';
 import { paddingMat3 } from './utils/transform';
 import PainterRegistry from './shape-registry';
-import { MatrixStack } from './utils/transform';
 import { JEvent } from './event/event-target'
 
 import SDFPainter from './shape/sdf';
 import GridPainter from './shape/grid';
 import PolylinePainter from './shape/polyline/painter-new.js';
-import MeshPainter from './shape/mesh';
-import MSDFTextPainter from './shape/msdftext';
+import MeshPainter from './shape/mesh/mesh-painter2';
+import MSDFTextPainter from './shape/msdftext/msdf-painter2';
+import SmoothPolyPainter from './shape/smooth-polyline/smooth-poly2.js';
+import SDFRectPainter from './shape/sdf/sdf-rect-painter2';
 
 import GroupCtor from './layer/group';
 import EllipseCtor from './instance/ellipse';
@@ -65,10 +66,13 @@ class JCanvas {
     constructor() {
         this._stage.jcanvas = this;
         this.usePainter(GridPainter);
-        this.usePainter(SDFPainter);
+        // this.usePainter(SDFPainter);
+        this.usePainter(SDFRectPainter);
         this.usePainter(MeshPainter);
-        this.usePainter(PolylinePainter);
+        // this.usePainter(PolylinePainter);
+        this.usePainter(SmoothPolyPainter);
         this.usePainter(MSDFTextPainter);
+       
 
        
         this.useShape('Group', GroupCtor);
@@ -76,7 +80,7 @@ class JCanvas {
         this.useShape('Rectangle', RectangleCtor);
         this.useShape('Path', PathCtor);
         this.useShape('PolyLine', PolyLineCtor);
-        this.useShape('Text', TextCtor);
+        // this.useShape('Text', TextCtor);
         this.useShape('MSDFText', MSDFTextCtor);
 
         this.useInfra(EventResolver);
@@ -143,7 +147,7 @@ class JCanvas {
         ctx.configure({
             device,
             format: presentationFormat,
-            alphaMode: 'premultiplied'
+            alphaMode: 'premultiplied',
         })
         await this.loadMSDFFont(device);
 
@@ -204,6 +208,9 @@ class JCanvas {
         const _viewport = this._viewport;
         this.viewport2Canvas(0, 0, _viewport.LT);
         this.viewport2Canvas(width, height, _viewport.RB);
+        vec2.set(_viewport.LB, _viewport.LT[0], _viewport.RB[1]);
+        vec2.set(_viewport.RT, _viewport.RB[0], _viewport.LT[1]);
+        _viewport.boundingRbush;
     }
 
     updateWorldUniform() {
@@ -295,32 +302,58 @@ class JCanvas {
         this.render();
     }
 
+    meshDirtyInstance(instance) {
+        if(instance._materialdirty || instance._geodirty) {
+            this._painterRegistry.iterate(painter => {
+                const dirty = painter.collectConfig(instance);
+                if(dirty) {
+                    painter._dirty = true;
+                }
+            })
+            instance._materialdirty = false;
+            instance._geodirty = false;
+        }
+    }
+
     mesh() {
         const shapeRegistry = this._painterRegistry;
         let zindex = 20;
         // console.time('mesh')
         
-        this._stage.traverse((instance) => {
-            if(instance.renderable) {
-                instance._zIndex = zindex++;
-
-                // const painter = this._painterRegistry.get(instance.constructor);
-                // if(!painter) {
-                //     throw `no painter for ${instance.constructor}`
-                // }
-               
-                if(instance._materialdirty || instance._geodirty) {
-                    this._painterRegistry.iterate(painter => {
-                        const dirty = painter.collectConfig(instance);
-                        if(dirty) {
-                            painter._dirty = true;
-                        }
-                    })
-                    instance._materialdirty = false;
-                    instance._geodirty = false;
+        let maskIndex = 0;
+        let maskStack = [];
+        const delayedMesh = [];
+        let maxLayer = 0;
+        // let maskLayer = 0;
+        this._stage.traverse(
+            // callback
+            (instance) => {
+                if(instance.renderable) {
+                    instance._zIndex = zindex++;
+                    this.meshDirtyInstance(instance);
+                }
+                if(instance.mask) {
+                    maskIndex++;
+                    maskStack.push(maskIndex);
+                    if(instance._materialdirty || instance._geodirty) {
+                        delayedMesh.push(instance.mask)
+                    }
+                }
+                instance._maskIndex = maskStack[maskStack.length-1];
+                instance._maskLayer = maskStack.length;
+                maxLayer = Math.max(instance._maskLayer, maxLayer)
+            }, 
+            // callbackleave
+            (instance) => {
+                if(instance.mask) {
+                    maskStack.pop();
                 }
             }
-        })
+        );
+        console.log(maxLayer, maskIndex)
+        delayedMesh.forEach(instance => {
+            this.meshDirtyInstance(instance);
+        });
         this._painterRegistry.iterate((painter) => {
             if(painter._dirty) {
                 painter.afterCollectConfig();
@@ -345,17 +378,71 @@ class JCanvas {
         // const shapes = this._culling.inBound(this.context.viewport.bounding)
         const device = this.context.device;
         const encoder = device.createCommandEncoder();
-        this._painterRegistry.iterate((painter) => {
+        const _painterRegistry = this._painterRegistry;
+        _painterRegistry.iterate((painter) => {
             painter.beforeRender(encoder)
         })
-        const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(this.context.ctx, this._depthTexture));
-        // console.log(this._zIndexCounter)
+        /* const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(this.context.ctx, this._depthTexture));
         this._painterRegistry.iterate((painter) => {
             painter.render(encoder, passEncoder)
         })
         passEncoder.end();
-        device.queue.submit([encoder.finish()]);
+        */
+        const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(this.context.ctx, this._depthTexture));
+        // let maskLayer = -1;
+
+        passEncoder.setStencilReference(0);
         this._painterRegistry.iterate((painter) => {
+            painter.render(encoder, passEncoder)
+        })
+        this._stage.traverseOnlyLayer(
+            (i) => {
+                // if(i._maskLayer > maskLayer) {
+                    // render mask 
+                    // setStencilReference
+                    const { _maskIndex, _maskLayer, mask } = i;
+                    if(mask) {
+                        // console.log(`renderMaskBegin layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                        _painterRegistry.iterateOnInstance(mask, (painter) => {
+                            painter.renderMaskBegin(mask, encoder, passEncoder);
+                        });
+                        passEncoder.setStencilReference(_maskLayer);
+                        // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                        _painterRegistry.iterateGeneral((painter) => {
+                            painter.render(encoder, passEncoder, _maskIndex)
+                        })
+                        // console.log('setStencilReference', _maskLayer)
+                    }
+                    // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                   
+                    
+                // }
+            }, (i) => {
+                // render mask end  
+                // setStencilReference
+                // const prevLayer = i._belongs._maskLayer;
+                // if(i._maskLayer > prevLayer) {
+                const { _maskIndex, _maskLayer, mask } = i;
+                if(mask) {
+                    // console.log(`renderMaskEnd layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                    _painterRegistry.iterateOnInstance(mask, (painter) => {
+                        painter.renderMaskEnd(mask, encoder, passEncoder);
+                    });
+                    passEncoder.setStencilReference(_maskLayer-1);
+                    // console.log('setStencilReference', _maskLayer-1)
+                }
+                // }
+
+            })
+        
+        this._painterRegistry.iterateStatic((painter) => {
+            painter.render(encoder, passEncoder)
+        })
+
+        passEncoder.end();
+
+        device.queue.submit([encoder.finish()]);
+        _painterRegistry.iterate((painter) => {
             painter.afterRender()
         })
     }
@@ -374,17 +461,23 @@ export default JCanvas;
 
 
 function _createDepthTexture(canvas, device) {
+    // const depthTexture = device.createTexture({
+    //     size: [canvas.width, canvas.height],
+    //     format: 'depth24plus',
+    //     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    //     label: 'depthTexture',
+    // });
     const depthTexture = device.createTexture({
-        size: [canvas.width, canvas.height],
-        format: 'depth24plus',
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         label: 'depthTexture',
+        format: 'depth24plus-stencil8',
+        size: [canvas.width, canvas.height],
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
     return depthTexture;
 };
 
-function _createRenderPassDescriptor(ctx, depthTexture) {
-    return {
+function _createRenderPassDescriptor(ctx, stencilTexture) {
+    /* return {
         colorAttachments: [
             {
                 view: ctx.getCurrentTexture().createView(),
@@ -398,6 +491,25 @@ function _createRenderPassDescriptor(ctx, depthTexture) {
             depthClearValue: 1,
             depthLoadOp: 'clear',
             depthStoreOp: 'store',
+        }
+    }*/
+
+    return {
+        colorAttachments: [
+            {
+                view: ctx.getCurrentTexture().createView(),
+                clearValue: [0,0,0,0],
+                storeOp: "store",
+                loadOp: "clear"
+            }
+        ],
+        depthStencilAttachment: {
+            view: stencilTexture.createView(),
+            stencilStoreOp: "store",
+            stencilLoadOp: "clear",
+            depthClearValue: 1,
+            depthLoadOp: "clear",
+            depthStoreOp: "store"
         }
     }
 }

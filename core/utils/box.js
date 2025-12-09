@@ -47,6 +47,20 @@ export class Box {
     }
 }
 
+export function doOverlapBoxBounding(box1, box2) {
+    const br1 = box1._boundingboxforRBush;
+    const br2 = box2._boundingboxforRBush;
+    if (br1.minX == br1.maxX || br1.minY == br1.maxY  ||
+        br2.minX == br2.maxX || br2.minY == br2.maxY ) {
+        return false;
+    }
+
+    return !(br1.maxX <= br2.minX ||
+        br1.maxY <= br2.minY ||
+        br1.minX >= br2.maxX || 
+        br1.minY >= br2.maxY);
+}
+
 export function doOverlapBox(box1, box2) {
     const LTBox1 = box1.LT;
     const RBBox1 = box1.RB;

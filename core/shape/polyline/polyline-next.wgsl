@@ -59,16 +59,25 @@ struct VertexOutput {
     @location(1) arc: vec4f,
     @location(2) jointType: f32,
     @location(3) travel: f32,
-    @location(4) distance: vec4f,
-    @location(5) scalingFactor: f32,
-    @location(6) strokeWidth: f32,
+    @location(4) vLine1: vec4f,
+    @location(5) vLine2: vec4f,
+    @location(6) scalingFactor: f32,
+    @location(7) strokeWidth: f32,
+    @location(8) vArc: vec4f,
 }
+
+struct JointReturn {
+    pos: vec2f,
+    norm: vec2f,
+    norm2: vec2f
+};
 
 fn crossvec2(v1:vec2f, v2:vec2f) -> f32 {
     return v1.x * v2.y - v1.y * v2.x;
 }
 
-fn getInnerJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
+fn getInnerJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> JointReturn {
+    var output: JointReturn;
     let xBasis = pa - p;
     let len1 = length(xBasis);
     var norm = normalize(vec2f(-xBasis.y, xBasis.x));
@@ -83,14 +92,19 @@ fn getInnerJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
         bisect = -bisect;
         norm = -norm;
     } 
+    output.norm = norm;
+    output.norm2 = norm2;
     let d = bisect / dot(norm, bisect) * LineWidth;
     if(length(d) > min(len1, len2)){
-        return p + norm * LineWidth;
+        output.pos = p + norm * LineWidth;
+        return output;
     }
-    return  p + d;
+    output.pos = p+d;
+    return  output;
 }
 
-fn getOuterJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
+fn getOuterJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> JointReturn {
+    var output: JointReturn;
     let xBasis = pa - p;
     var norm = normalize(vec2f(-xBasis.y, xBasis.x));
 
@@ -101,7 +115,10 @@ fn getOuterJoint(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32) -> vec2f {
     if(prod > 0.0) {
         norm = -norm;
     } 
-    return  p + norm * LineWidth;
+    output.pos = p + norm * LineWidth;
+    output.norm = norm;
+    output.norm2 = norm2;
+    return output;
 }
 
 fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineWidth: f32) -> vec2f {
@@ -115,6 +132,7 @@ fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineW
     let norm2 = normalize(vec2f(xBasis2.y * fact, -xBasis2.x * fact));
     var bisect = (norm + norm2) / 2.0;
     let prod = bisect.x * norm.y - bisect.y * norm.x;
+
     if(pdir == RIGHT_POINT) {
         // 线段右侧的点
         if(prod >= 0.0) {
@@ -148,7 +166,8 @@ fn getSegmentVertPos(p: vec2f, pa: vec2f, pb: vec2f, fact: f32, pdir: u32, LineW
     return pos;
 }
 
-fn getOuterBevel(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32, BavelLimit: f32) -> vec2f {
+fn getOuterBevel(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32, BavelLimit: f32) -> JointReturn {
+    var output: JointReturn;
     let xBasis = pa - p;
     var norm = normalize(vec2f(-xBasis.y, xBasis.x));
 
@@ -162,6 +181,8 @@ fn getOuterBevel(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32, BavelLimit: f32
     } 
     var bisectline = bisect / dot(norm, bisect) * LineWidth;
     let len = length(bisectline);
+    output.norm = norm;
+    output.norm2 = norm2;
     if(len > BavelLimit) {
         let theta = acos(clamp(dot(norm, norm2), -1.0, 1.0));
         var thetanb = theta/3;
@@ -182,9 +203,11 @@ fn getOuterBevel(p: vec2f, pa: vec2f, pb: vec2f, LineWidth: f32, BavelLimit: f32
         let nb = rotatemat*norm;
         // var nb = bisectline/len;
         let jp = p + nb * BavelLimit;
-        return jp;
+        output.pos = jp;
+        return output;
     }
-    return  p + bisectline;
+    output.pos = p + bisectline;
+    return output;
 }
 
 
@@ -221,6 +244,10 @@ fn vs(
         return output;
     }
 
+    var vLine1 = vec4f(0.0, 10.0, 1.0, 0.0);
+    var vLine2 = vec4f(0.0, 10.0, 1.0, 0.0);
+    var vArc = vec4f(0.0);
+    var vType:f32 = 0.0;
     /*
     合并实现
     */
@@ -231,48 +258,78 @@ fn vs(
 
     let vecAB = pointA - pointB;
     let normAB = normalize(vec2f(-vecAB.y, vecAB.x));
-
+    var dy = LineWidth + expand;
     if(vertexNum > -0.5 && vertexNum < 3.5) {
         // 线段
+        var dy2 = -1000.0;
         if(vertexNum < 0.5){
             pos = getSegmentVertPos(pointA, pointB, pointPrev, 1.0, LEFT_POINT, LineWidth);
-            distance.x = LineWidth;
+
         } else if(vertexNum < 1.5) {
             pos = getSegmentVertPos(pointB, pointA, pointNext, -1.0, RIGHT_POINT, LineWidth);
-            distance.x = LineWidth;
+
         } else if(vertexNum < 2.5) {
             pos = getSegmentVertPos(pointB, pointA, pointNext, 1.0, LEFT_POINT, LineWidth);
-            distance.x = -LineWidth;
+            dy = -dy;
         } else if(vertexNum < 3.5) {
             pos = getSegmentVertPos(pointA, pointB, pointPrev, -1.0, RIGHT_POINT, LineWidth);
-            distance.x = -LineWidth;
+            dy = -dy;
         }
+        vLine1.y = LineWidth;
+        vLine1.x = dy;
+
         output.jointType = 0.0;
     } else {
-         if (vertexNum < 4.5) {
+        var jointResult: JointReturn;
+        if (vertexNum < 4.5) {
             // #4
-            pos = getInnerJoint(pointB, pointA, pointNext, LineWidth);
+            jointResult = getInnerJoint(pointB, pointA, pointNext, LineWidth);
         } else if (vertexNum < 5.5) {
             // #5
-            pos = getOuterJoint(pointB, pointA, pointNext, LineWidth);//getSegmentVertPos(pointB, pointA, pointNext, -1.0, RIGHT_POINT, LineWidth);
+            jointResult = getOuterJoint(pointB, pointA, pointNext, LineWidth);//getSegmentVertPos(pointB, pointA, pointNext, -1.0, RIGHT_POINT, LineWidth);
         }
 
         if(vertexNum > 7.5) {
             // #8
-            pos = getOuterJoint(pointB, pointNext, pointA, LineWidth);//getSegmentVertPos(pointB, pointNext, pointA, 1.0, LEFT_POINT, LineWidth);
+            jointResult = getOuterJoint(pointB, pointNext, pointA, LineWidth);//getSegmentVertPos(pointB, pointNext, pointA, 1.0, LEFT_POINT, LineWidth);
         }
 
 
         if(vertexNum > 5.5 && vertexNum < 6.5) {
             // #6
-            pos = getOuterBevel(pointB, pointA, pointNext, LineWidth, LineWidth);//pointB; //+ bisect * LineWidth;
-
+            jointResult = getOuterBevel(pointB, pointA, pointNext, LineWidth, LineWidth);//pointB; //+ bisect * LineWidth;
         }
 
         if(vertexNum > 6.5 && vertexNum < 7.5) {
             // #7
-            pos = getOuterBevel(pointB, pointNext, pointA, LineWidth, LineWidth); //+ bisect * LineWidth;
+            jointResult = getOuterBevel(pointB, pointNext, pointA, LineWidth, LineWidth); //+ bisect * LineWidth;
         }
+        output.jointType = 4.0;
+        pos = jointResult.pos;
+        var norm = jointResult.norm;
+        var norm2 = jointResult.norm2;
+        var norm3 = normalize(jointResult.norm + jointResult.norm2);
+        // vLine1.x = dot(pos-pointB, jointResult.norm);
+        // vLine1.y = LineWidth;
+        // vLine2.x = dot(pos-pointB, jointResult.norm2);
+        // vLine2.y = LineWidth;
+        // vArc.z = dot(jointResult.norm, norm3) * (LineWidth) - dot(pos-pointB, norm3);
+        var relativePos = pos-pointB;
+
+        var D = norm.x * norm2.y - norm.y * norm2.x;
+        var inner = 1.0;
+        if (D < 0.0) {
+            inner = 1.0 - inner;
+        }
+        if (inner > 0.5) {
+            dy = -dy;
+            inner = 0.0;
+        }
+        var sign = step(0.0, dy) * 2.0 - 1.0;
+        vLine1.x = -sign * dot(relativePos, norm);
+        vLine1.y = -sign * dot(relativePos, norm2);
+        vLine1.z = (-sign * dot(relativePos, norm3)) + LineWidth;
+        vLine1.w = LineWidth;
     }
 
 
@@ -305,7 +362,9 @@ fn vs(
     let forward = normalize(xBasis);
     let norm = vec2(forward.y, -forward.x);
     output.travel = vert.travel + dot(pos - pointA, vec2(-norm.y, norm.x));
-
+    output.vLine1 = vLine1;
+    output.vLine2 = vLine2;
+    output.vArc = vArc;
     output.position = vec4f((gloabalUniforms.u_ProjectionMatrix
         * gloabalUniforms.u_ViewMatrix
         * vec3f(pos, 1)).xy, (zindexTop - obj.zindex - 1)/zindexTop, 1);
@@ -330,16 +389,33 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     }
     var outputColor = obj.stroke;
     let jointType = fragData.jointType;
-    let distance = fragData.distance;
-    let d = distance.x;
-    let w = distance.w;
+    let vLine1 = fragData.vLine1;
+    let vLine2 = fragData.vLine2;
+    let vArc = fragData.vArc;
     // var alpha: f32 = 1.0;
-    var result: f32 = 0.0;
+    var alpha: f32 = 1.0;
 
     if(jointType < 0.5 ) {
-        let left = pixelLine(d-w);
-        let right = pixelLine(d+w);
-        result = (right-left);
+        // 0 一般线段 
+        var left = pixelLine(-vLine1.y - vLine1.x);
+        var right = pixelLine(vLine1.y - vLine1.x);
+        // var near = vLine2.x - 0.5;
+        // var far = min(vLine2.x + 0.5, 0.0);
+        // var top = vLine2.y - 0.5;
+        // var bottom = min(vLine2.y + 0.5, 0.0);
+        alpha = (right - left) ;//* max(bottom - top, 0.0) * max(far - near, 0.0);
+    } else if(jointType < 4.5){
+        // 4 bevel 拐点
+        var d1 = vLine1.x;
+        var d2 = vLine1.y;
+        var d3 = vLine1.z;
+        var  w = vLine1.w;
+        var a1 = pixelLine(d1 - w);
+        var a2 = pixelLine(d1 + w);
+        var b1 = pixelLine(d2 - w);
+        var b2 = pixelLine(d2 + w);
+        alpha = a2 * b2 - a1 * b1;
+        // alpha *= pixelLine(d3);
     }
 
     /*if(jointType == 0.0) {
@@ -381,7 +457,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     let Dash = obj.dashed.x;
     let Gap = obj.dashed.y;
     let DashOffset = obj.dashed.z;
-    var alpha = 1.0;
+    // var alpha = 1.0;
     if (Dash + Gap > 1.0) {
         let travel = (fragData.travel + Gap * 0.5 + DashOffset) % (Dash + Gap) - (Gap * 0.5);
         let left = max(travel - 0.5, -0.5);

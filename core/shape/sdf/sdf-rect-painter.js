@@ -1,14 +1,12 @@
 import Layer from '../../layer/layer';
 import { mat3, vec2 } from 'gl-matrix';
-import sdfShader from './sdf.wgsl?raw';
+import sdfShader from './rect.wgsl?raw';
 import shadowShader from './shadow.wgsl?raw';
-import Ellipse from '../../instance/ellipse';
-import Rectangle from '../../instance/rectangle';
 // console.log(circleShader)
 import { paddingMat3, copyMat3 } from '../../utils/transform';
 import { createBufferWithData } from '../../utils/buffer';
 
-function SDFPainter() {
+function SDFRectPainter() {
     const BYTE_PER_OBJ_VERTEX = Float32Array.BYTES_PER_ELEMENT * 2 * 8;
     const BYTE_PER_OBJ_INDEX = Uint16Array.BYTES_PER_ELEMENT * 6;
     const BYTE_PER_OBJ_CONFIG = Float32Array.BYTES_PER_ELEMENT * 6;
@@ -46,7 +44,7 @@ function SDFPainter() {
                 },
                 { 
                     binding: 2, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
-                    buffer: { type: 'uniform', minBindingSize: 160 },
+                    buffer: { type: 'uniform', minBindingSize: 176 },
                 },
             ],
         });
@@ -142,9 +140,9 @@ function SDFPainter() {
         })
 
         const MATIRIAL_OFFSET = 0;
-        const TRAN_OFFSET = 20;
+        const TRAN_OFFSET = 24;
         const SHADOW_OFFSET = 32;
-        const uniformBufferSize = (4 + 4 + 4 + 4 + 4 + 12 + 4 + 4) * 4; // r, zindex, fill, stroke, transformMat
+        const uniformBufferSize = (4 + 4 + 4 + 4 + 4 + 4 + 12 + 4 + 4) * 4; // r, zindex, fill, stroke, transformMat
        
         const uniformBufferSpace = roundUp(uniformBufferSize, device.limits.minUniformBufferOffsetAlignment);
         const uniformBuffer = device.createBuffer({
@@ -201,7 +199,7 @@ function SDFPainter() {
                     continue;
                 }
                 const {
-                    type, x, y, w, h, borderRadius, _strokeWidth, _zIndex, mat,
+                    x, y, w, h, strokeWidth, borderRadius, _zIndex, mat,
                     _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
                     _strokeLineDash,
                 } = config.getConfig();
@@ -220,20 +218,28 @@ function SDFPainter() {
                 materialValue[3] = h;
 
                 materialValue[4] = _zIndex;
-                materialValue[5] = _strokeWidth;
-                materialValue[6] = borderRadius || 0;
-                materialValue[7] = type;
-                materialValue[8] = _strokeLineDash?.length || 0;
+                materialValue[5] = _strokeLineDash?.length || 0;
+
+                materialValue[8] = strokeWidth.top;
+                materialValue[9] = strokeWidth.right;
+                materialValue[10] = strokeWidth.bottom;
+                materialValue[11] = strokeWidth.left;
+
+                materialValue[12] = borderRadius.topRight;
+                materialValue[13] = borderRadius.bottomRight;
+                materialValue[14] = borderRadius.topLeft;
+                materialValue[15] = borderRadius.bottomLeft;
+                
                 // fill
-                materialValue[12] = _colors[0];
-                materialValue[13] = _colors[1];
-                materialValue[14] = _colors[2];
-                materialValue[15] = _colors[3];
+                materialValue[16] = _colors[0];
+                materialValue[17] = _colors[1];
+                materialValue[18] = _colors[2];
+                materialValue[19] = _colors[3];
                 // stroke
-                materialValue[16] = _colors[4];
-                materialValue[17] = _colors[5];
-                materialValue[18] = _colors[6];
-                materialValue[19] = _colors[7];
+                materialValue[20] = _colors[4];
+                materialValue[21] = _colors[5];
+                materialValue[22] = _colors[6];
+                materialValue[23] = _colors[7];
                 copyMat3(shapeMatrixValue, mat);
                 // console.log(materialValue)
                 if(_shadowBlur) {
@@ -302,10 +308,9 @@ function SDFPainter() {
     
     
     return {
-        name: 'SDFPainter',
+        name: 'SDFRectPainter',
         generateRender,
-        // Ctor: [Ellipse, Rectangle]
     }
 }
 
-export default SDFPainter;
+export default SDFRectPainter;

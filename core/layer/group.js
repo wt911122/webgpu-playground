@@ -19,6 +19,8 @@ class Group extends Layer {
 
     _tempVec = vec2.create();
 
+    _mask = null;
+
     get x() {
         return this._position[0];
     }
@@ -102,6 +104,10 @@ class Group extends Layer {
     {
         const lc = this._localBoundingbox;
         return Math.abs((lc.RB[1] - lc.LT[1]));
+    }
+
+    get mask() {
+        return this._mask;
     }
 
     // set width(value)
@@ -271,6 +277,10 @@ class Group extends Layer {
         lt[7] = position[1] - ((px * lt[1]) + (py * lt[4])) // Pivot offset
             + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
             - oy; // Remove origin to maintain position
+    }
+
+    setMask(shape) {
+        this._mask = shape;
     }
 
     static attachPainter() {
