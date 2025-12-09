@@ -8,7 +8,7 @@ struct VSOut {
 };
 @vertex fn vs(vsIn: VSIn) -> VSOut {
   var vsOut: VSOut;
-  vsOut.pos = vec4f(vsIn.pos.xy, 0.91, 1);
+  vsOut.pos = vec4f(vsIn.pos.xy, 0, 1);
   vsOut.fragPosition = vsOut.pos.xy;
   return vsOut;
 }
@@ -306,11 +306,12 @@ const generalPipelineDescription = (program, layout) => ({
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
   
-  const numObjects = 3;
+  const numObjects = 4;
   const triangles = [
     new Float32Array([0, -1, 1, -1, -1, 1]),
     new Float32Array([-1, -1, 1, -1, 1, 0]),
     new Float32Array([-1, 1, 1, 1, 1, 0]),
+    new Float32Array([0, 0.5, 0.5, -0.5, 0, -0.5]),
   ]
   const triangleBuffers = [];
   for (let i = 0; i < numObjects; ++i) {
@@ -326,7 +327,8 @@ const generalPipelineDescription = (program, layout) => ({
   const colors = [
     [1,0,0,1],
     [0,1,0,1],
-    [0,0,1,1]
+    [0,0,1,1],
+    [0,1,1,1]
   ]
   const uniformValues = new Float32Array(dynamicUniformTransferBuffer.getMappedRange());
   const size = (numObjects - 1) * uniformBufferSpace + uniformBufferSize;
@@ -378,16 +380,32 @@ const generalPipelineDescription = (program, layout) => ({
   // });
   {
 
+    const maskVertsArray = [
+      new Float32Array([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5 ]),
+      new Float32Array([-0.3, -0.3, 0.3, -0.3, 0.3, 0.3, -0.3, 0.3 ]),
+    ]
+    
+    const maskBuffers = [];
+
+    for(let i=0;i<2;i++) {
+      const vert = maskVertsArray[i];
+      const maskVertexBuffer = device.createBuffer({
+        size: vert.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(maskVertexBuffer, 0, vert);
+      maskBuffers.push(maskVertexBuffer);
+    }
     // 遮罩
-    const maskVerts = new Float32Array([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5 ]);
+    // const maskVerts = new Float32Array([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5 ]);
     const maskIndicesArray = new Uint16Array([
           0, 1, 2, 0, 2, 3
       ]);
-    const maskVertexBuffer = device.createBuffer({
-      size: maskVerts.byteLength,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(maskVertexBuffer, 0, maskVerts);
+    // const maskVertexBuffer = device.createBuffer({
+    //   size: maskVerts.byteLength,
+    //   usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    // });
+    // device.queue.writeBuffer(maskVertexBuffer, 0, maskVerts);
     const maskIndicesBuffer = device.createBuffer({
       size: maskIndicesArray.byteLength,
       usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
@@ -396,7 +414,7 @@ const generalPipelineDescription = (program, layout) => ({
 
     // draw the mask
     pass.setPipeline(maskMakingPipeline);
-    pass.setVertexBuffer(0, maskVertexBuffer);
+    pass.setVertexBuffer(0, maskBuffers[0]);
     pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
     pass.setStencilReference(0);
     pass.drawIndexed(6, 1);
@@ -405,17 +423,82 @@ const generalPipelineDescription = (program, layout) => ({
 
     pass.setStencilReference(1);
     pass.setPipeline(generalPipeline);
-    pass.setBindGroup(0, _bindGroups[1]);
-    pass.setVertexBuffer(0, triangleBuffers[1]);
+
+    pass.setPipeline(maskMakingPipeline);
+    pass.setVertexBuffer(0, maskBuffers[1]);
+    pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+    pass.drawIndexed(6, 1);
+    pass.setStencilReference(2);
+
+    pass.setPipeline(generalPipeline);
+    pass.setBindGroup(0, _bindGroups[3]);
+    pass.setVertexBuffer(0, triangleBuffers[3]);
     pass.draw(3);
 
     pass.setPipeline(maskEndPipeline);
-    pass.setVertexBuffer(0, maskVertexBuffer);
+    pass.setVertexBuffer(0, maskBuffers[1]);
+    pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+    pass.drawIndexed(6, 1);
+    pass.setStencilReference(1);
+
+    // pass.setPipeline(generalPipeline);
+    // pass.setBindGroup(0, _bindGroups[1]);
+    // pass.setVertexBuffer(0, triangleBuffers[1]);
+    // pass.draw(3);
+
+    pass.setPipeline(maskEndPipeline);
+    pass.setVertexBuffer(0, maskBuffers[0]);
     pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
     pass.drawIndexed(6, 1);
 
     pass.setStencilReference(0);
 
+    // ===== 第一层遮罩开始 =====
+  // 绘制第一层遮罩 (stencil 0 -> 1)
+//   pass.setPipeline(maskMakingPipeline);
+//   pass.setStencilReference(0);  // 在这里设置
+//   pass.setVertexBuffer(0, maskBuffers[0]);
+//   pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+//   pass.drawIndexed(6, 1);
+
+//   // ===== 第二层遮罩开始 =====
+//   // 绘制第二层遮罩 (stencil 1 -> 2)
+//   pass.setPipeline(maskMakingPipeline);
+//   pass.setStencilReference(1);  // 在这里设置
+//   pass.setVertexBuffer(0, maskBuffers[1]);
+//   pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+//   pass.drawIndexed(6, 1);
+
+//   // 绘制第二层遮罩内的内容 (stencil == 2)
+//   pass.setPipeline(generalPipeline);
+//   pass.setStencilReference(2);
+//   pass.setBindGroup(0, _bindGroups[3]);
+//   pass.setVertexBuffer(0, triangleBuffers[3]);
+//   pass.draw(3);
+
+//   // 结束第二层遮罩 (stencil 2 -> 1)
+//   pass.setPipeline(maskEndPipeline);
+//   pass.setStencilReference(2);  // 在这里设置
+//   pass.setVertexBuffer(0, maskBuffers[1]);
+//   pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+//   pass.drawIndexed(6, 1);
+//   // ===== 第二层遮罩结束 =====
+
+//   // 绘制第一层遮罩内的内容 (stencil == 1)
+//   pass.setPipeline(generalPipeline);
+//   pass.setStencilReference(1);
+//   pass.setBindGroup(0, _bindGroups[1]);
+//   pass.setVertexBuffer(0, triangleBuffers[1]);
+//   pass.draw(3);
+
+//   // 结束第一层遮罩 (stencil 1 -> 0)
+//   pass.setPipeline(maskEndPipeline);
+//   pass.setStencilReference(1);  // 在这里设置
+//   pass.setVertexBuffer(0, maskBuffers[0]);
+//   pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
+//   pass.drawIndexed(6, 1);
+//   // ===== 第一层遮罩结束 =====
+// pass.setStencilReference(0);  // 在这里设置
 
     pass.setPipeline(generalPipeline);
     pass.setBindGroup(0, _bindGroups[2]);
@@ -424,94 +507,6 @@ const generalPipelineDescription = (program, layout) => ({
   }
 
   pass.end();
-
-  
-  /*{
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [{
-        view: context.getCurrentTexture().createView(),
-        clearValue: [0, 0, 0, 0],
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
-      depthStencilAttachment: {
-        view: stencilTexture2.createView(),
-        stencilLoadOp: 'load',
-        stencilStoreOp: 'store',
-        depthClearValue: 1,
-        depthLoadOp: 'load',
-        depthStoreOp: 'store',
-      }
-    });
-    // draw only the mask is
-    pass.setPipeline(maskedPipeline);
-    pass.setStencilReference(1);
-    pass.setBindGroup(0, _bindGroups[1]);
-    pass.setVertexBuffer(0, triangleBuffers[1]);
-    pass.draw(3);
-
-    pass.setPipeline(maskedbackPipeline);
-    pass.setStencilReference(0);
-    pass.setBindGroup(0, _bindGroups[2]);
-    pass.setVertexBuffer(0, triangleBuffers[2]);
-    pass.draw(3);
-    pass.end();
-  }*/
-  //  const stencilTexture2 = device.createTexture({
-  //   label: 'depthTexture',
-  //   format: 'depth24plus-stencil8',
-  //   size: [canvas.width, canvas.height],
-  //   usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  // });
-  /*{
-      const pass = encoder.beginRenderPass({
-        colorAttachments: [],
-        depthStencilAttachment: {
-          view: stencilTexture.createView(),
-          stencilClearValue: 0,
-          stencilLoadOp: 'load',
-          stencilStoreOp: 'store',
-          depthClearValue: 1,
-          depthLoadOp: 'clear',
-          depthStoreOp: 'store',
-        }
-      });
-      // draw the mask
-      pass.setPipeline(maskMakingPipeline);
-      pass.setVertexBuffer(0, maskVertexBuffer);
-      pass.setIndexBuffer(maskIndicesBuffer, 'uint16');
-      pass.setStencilReference(1);
-      pass.drawIndexed(6, 1);
-      pass.end();
-  }*/ 
-
-  // {
-  //   const pass2 = encoder.beginRenderPass({
-  //     colorAttachments: [{
-  //       view: context.getCurrentTexture().createView(),
-  //       clearValue: [0, 0, 0, 0],
-  //       loadOp: 'load',
-  //       storeOp: 'store',
-  //     }],
-  //     depthStencilAttachment: {
-  //       view: stencilTexture.createView(),
-  //       stencilClearValue: 0,
-  //       stencilLoadOp: 'load',
-  //       stencilStoreOp: 'store',
-  //       depthClearValue: 1,
-  //       depthLoadOp: 'load',
-  //       depthStoreOp: 'store',
-  //     }
-  //   });
-  //   pass2.setPipeline(maskedPipeline);
-  //   pass2.setStencilReference(0);
-  //   pass2.setBindGroup(0, _bindGroups[2]);
-  //   pass2.setVertexBuffer(0, triangleBuffers[2]);
-  //   pass2.draw(3);
-  //   pass2.end()
-  // } 
-
-  
 
   device.queue.submit([encoder.finish()]);
 
