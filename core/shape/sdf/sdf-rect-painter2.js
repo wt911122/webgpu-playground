@@ -24,6 +24,7 @@ function SDFRectPainter() {
     
     function generateRender(context) {
         const device = context.device;
+        const defaultTexture = context.texturePainter.defaultTexture;
         const shapeProgram = device.createShaderModule({
             code: sdfShader,
         });
@@ -53,11 +54,11 @@ function SDFRectPainter() {
                 },
             ],
         });
-
+        const textureBindGroupLayout = context.texturePainter.textureBindGroupLayout;
         const pipelineLayout = device.createPipelineLayout({
-            bindGroupLayouts: [ bindGroupLayout ],
+            bindGroupLayouts: [ bindGroupLayout, textureBindGroupLayout ],
         });
-        const pipelineDescription = (program, writeMask = GPUColorWrite.ALL) => ({
+        const pipelineDescription = (program, pipelineLayout, writeMask = GPUColorWrite.ALL) => ({
             label: 'shape pipeline',
             layout: pipelineLayout,
             vertex: {
@@ -97,15 +98,20 @@ function SDFRectPainter() {
         })
 
         const renderShapePipeline = device.createRenderPipeline({
-            ...pipelineDescription(shapeProgram),
+            ...pipelineDescription(shapeProgram, pipelineLayout),
             depthStencil: GENERAL_DEPTH_STENCIL_CONFIG
         });
+
+
+        const maskpipelineLayout = device.createPipelineLayout({
+            bindGroupLayouts: [ bindGroupLayout ],
+        });
         const MaskBeginPipline = device.createRenderPipeline({
-            ...pipelineDescription(shapeMaskProgram, 0),
+            ...pipelineDescription(shapeMaskProgram, maskpipelineLayout, 0),
             depthStencil: MASK_BEGIN_DEPTH_STENCIL_CONFIG
         });
         const MaskEndPipline = device.createRenderPipeline({
-            ...pipelineDescription(shapeMaskProgram, 0),
+            ...pipelineDescription(shapeMaskProgram, maskpipelineLayout, 0),
             depthStencil: MASK_END_DEPTH_STENCIL_CONFIG
         });
         
@@ -125,6 +131,22 @@ function SDFRectPainter() {
             context,
             label: 'rectangle'
         });
+        function collecInstanceConfig(instance, config) {
+            if(!config.enable) {
+                return;
+            }
+            const { 
+                texture,
+            } = config.getConfig();
+            if(texture) {
+                if(texture.dirty) {
+                    texture.paint(context.texturePainter);
+                }
+                config.addBindGroup('textureBindGroup', texture.bindGroup)
+            } else {
+                config.addBindGroup('textureBindGroup', defaultTexture.bindGroup)
+            }
+        }
 
         function beforeRender(encoder, configs, cacheContext) {
             const numObjects = configs.length;
@@ -137,7 +159,7 @@ function SDFRectPainter() {
                     continue;
                 }
                 const {
-                    x, y, w, h, strokeWidth, borderRadius, type, _zIndex, mat, _colors, _strokeLineDash
+                    x, y, w, h, strokeWidth, borderRadius, type, _zIndex, mat, _colors, texture, _opacity
                 } = config.getConfig();
                 const uniformBufferOffset = i * uniformBufferSpace;
                 const f32Offset = uniformBufferOffset / 4;
@@ -155,7 +177,8 @@ function SDFRectPainter() {
 
                 materialValue[4] = _zIndex;
                 materialValue[5] = type;
-                materialValue[6] = _strokeLineDash?.length || 0;
+                materialValue[6] = _opacity;//_strokeLineDash?.length || 0;
+                materialValue[7] = texture ? 1: 0;
 
                 materialValue[8] = strokeWidth.top;
                 materialValue[9] = strokeWidth.right;
@@ -203,7 +226,8 @@ function SDFRectPainter() {
                     _f = true;
                 }
                 const bindGroup = bindGroups[i];
-                passEncoder.setBindGroup(0, bindGroup);   
+                passEncoder.setBindGroup(0, bindGroup);  
+                passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));   
                 passEncoder.drawIndexed(6, 1);
             }
         }
@@ -235,6 +259,7 @@ function SDFRectPainter() {
         }
 
         return {
+            collecInstanceConfig,
             beforeRender,
             render, 
             afterRender,

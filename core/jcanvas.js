@@ -8,7 +8,7 @@ import { createCanvas } from './utils/canvas';
 import { Box } from './utils/box';
 import IndexRBush from './utils/indexRBush.js';
 import { paddingMat3 } from './utils/transform';
-import PainterRegistry from './shape-registry';
+import PainterRegistry from './painter-registry';
 import { JEvent } from './event/event-target'
 
 import SDFPainter from './shape/sdf';
@@ -18,6 +18,7 @@ import MeshPainter from './shape/mesh/mesh-painter2';
 import MSDFTextPainter from './shape/msdftext/msdf-painter2';
 import SmoothPolyPainter from './shape/smooth-polyline/smooth-poly2.js';
 import SDFRectPainter from './shape/sdf/sdf-rect-painter2';
+import FilterPainter from './shape/filter/filter-painter';
 
 import GroupCtor from './layer/group';
 import EllipseCtor from './instance/ellipse';
@@ -33,6 +34,8 @@ import SelectBox from './infra/select-box';
 
 import FontRegistry from './font/font-registry';
 
+import { TexturePainter } from './texture/painter';
+import { BlurFilterPainter } from './texture/filter/blur-filter.js'
 
 class JCanvas {
     _stage = new Stage();
@@ -72,7 +75,7 @@ class JCanvas {
         // this.usePainter(PolylinePainter);
         this.usePainter(SmoothPolyPainter);
         this.usePainter(MSDFTextPainter);
-       
+        this.usePainter(FilterPainter);
 
        
         this.useShape('Group', GroupCtor);
@@ -150,7 +153,7 @@ class JCanvas {
             alphaMode: 'premultiplied',
         })
         await this.loadMSDFFont(device);
-
+        const texturePainter = TexturePainter(device);
         const camera = Camera();
         camera.projection(c_width, c_height);
         camera.update();
@@ -169,6 +172,7 @@ class JCanvas {
             worldUniformBuffer,
             shapeUniformBuffer,
             jcanvas: this,
+            texturePainter,
         }
 
         this.updateViewport();
@@ -304,12 +308,21 @@ class JCanvas {
 
     meshDirtyInstance(instance) {
         if(instance._materialdirty || instance._geodirty) {
-            this._painterRegistry.iterate(painter => {
-                const dirty = painter.collectConfig(instance);
+            if(instance.useTexture) {
+                const painter = this._painterRegistry.getPainter('FilterPainter');
+                const dirty = painter.collectFilterPainterConfig(instance, this);
                 if(dirty) {
-                    painter._dirty = true;
+                    painter._dirty = true
                 }
-            })
+            } else {
+                this._painterRegistry.iterate(painter => {
+                    const dirty = painter.collectConfig(instance, this);
+                    if(dirty) {
+                        painter._dirty = true;
+                    }
+                })
+            }
+           
             instance._materialdirty = false;
             instance._geodirty = false;
         }
@@ -545,3 +558,7 @@ function createScheduleRender(render) {
 
     return t;
 }
+
+
+export * from './texture/gradient';
+export * from './texture/image';

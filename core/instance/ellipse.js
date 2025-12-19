@@ -15,6 +15,7 @@ class Ellipse extends Shape {
     startingAngle = 0;
     endingAngle = Math.PI*2;
     innerRadius = 0;
+    _strokeWidth = 0;
 
     set width(val) {
         this.w = val;
@@ -82,6 +83,7 @@ class Ellipse extends Shape {
         this.startingAngle = startingAngle ?? 0;
         this.endingAngle = endingAngle ?? Math.PI*2;
         this.innerRadius = innerRadius ?? 0;    
+        this._strokeWidth = configs.strokeWidth ?? 0;
         this.flushTransform();
     }
 
@@ -227,15 +229,22 @@ class Ellipse extends Shape {
     getShapeConfig() {
         const { 
             w, h, 
-            startingAngle, endingAngle, innerRadius,
-            _strokeWidth, _zIndex, _currentMat, _colors, 
+            startingAngle, endingAngle, innerRadius, texture,
+            _strokeWidth, _zIndex, _currentMat, _colors, _opacity,
             _shadowOffsetX, _shadowOffsetY, _shadowBlur
         } = this;
         return {
             x:0, y:0,
             w, h, startingAngle, endingAngle, innerRadius,
-            strokeWidth: { top: _strokeWidth },
+            strokeWidth: { 
+                left: _strokeWidth,
+                top: _strokeWidth,
+                right: _strokeWidth,
+                bottom: _strokeWidth,
+            },
+            _opacity,
             _zIndex, 
+            texture,
             _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
             type: Ellipse.type,
             mat: paddingMat3(_currentMat)

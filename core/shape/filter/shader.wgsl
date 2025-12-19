@@ -12,12 +12,12 @@ struct ShapeUniforms {
 }
 @group(0) @binding(1) var<uniform> shapeUniforms: ShapeUniforms;
 
+
 struct PerObjectUniforms {
     zindex: f32,
     opacity: f32,
-    useTexture: f32,
-    box: vec4f,
-    fill: vec4f,
+    size: vec2f,
+    expand: vec2f,
     shapeMatrix: mat3x3f,
 };
 @group(0) @binding(2) var<uniform> obj: PerObjectUniforms;
@@ -25,45 +25,44 @@ struct PerObjectUniforms {
 @group(1) @binding(0) var textureSource: texture_2d<f32>;
 @group(1) @binding(1) var textureSampler: sampler;
 
-struct Vertex {
-    @location(0) vertexPos: vec2f
+struct VertexIn {
+    @location(0) vertexPos: vec2f,
+    @location(1) uv: vec2f,
 };
-
 
 struct VertexOutput {
   @builtin(position) position : vec4f,
-  @location(0) fragPosition: vec2f,
-  @location(1) radius: vec2f,
-  @location(2) texcoord: vec2f
-};
+  @location(1) vUV: vec2f,
+}
 
 @vertex
 fn vs(
-   vert: Vertex
+   vert: VertexIn
 ) -> VertexOutput {
-    var output : VertexOutput;
-    var position = vert.vertexPos;
+    var size = obj.size;
+    var expand = obj.expand;
+    let position = mix(
+         - expand,
+        size + expand,
+        (vert.vertexPos)
+    );
+
+    // var position = (obj.size / 2.0) * (vert.vertexPos + vec2f(1,1)) ; 
+
+    var output:VertexOutput;
     var zindexTop = shapeUniforms.zindexTop;
     output.position = vec4f((gloabalUniforms.u_ProjectionMatrix
         * gloabalUniforms.u_ViewMatrix
         * obj.shapeMatrix
         * vec3f(position, 1)).xy, (zindexTop - obj.zindex - 1)/zindexTop, 1);
-    output.fragPosition = position;
-    if(obj.useTexture > 0) {
-        var box = obj.box;
-        var size = box.zw - box.xy;
-        output.texcoord = (position-box.xy)/size;
-    }
+    output.vUV = vert.uv;
     return output;
 }
 
+
 @fragment
 fn fs(fragData: VertexOutput) -> @location(0) vec4f {
-    var fillColor: vec4f;
-    if(obj.useTexture > 0) {
-        fillColor = textureSample(textureSource, textureSampler, fragData.texcoord);
-    } else {
-        fillColor = vec4f(obj.fill.rgb*obj.fill.a/255, obj.fill.a);
-    }
-    return fillColor * obj.opacity;
+    var color = textureSample(textureSource, textureSampler, fragData.vUV);
+
+    return color * obj.opacity;
 }

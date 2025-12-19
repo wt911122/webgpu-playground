@@ -40,16 +40,19 @@ class BaseShape extends JEventTarget {
     _localBoundingbox = null;
 
     _fill = undefined;
+    _texture = undefined;
     _stroke = undefined;
     _shadowColor = undefined;
     _strokeLineDash = [];
-
+    
+    _filters = [];
 
     _colors = new Float32Array([
         0, 0, 0, 0,
         0, 0, 0, 0,
         0, 0, 0, 0,
     ])
+    _opacity = 1;
 
     _shadowOffsetX = 0;
     _shadowOffsetY = 0;
@@ -65,7 +68,10 @@ class BaseShape extends JEventTarget {
         super();
         this.visible = configs.visible ?? true;
         this.fill = (configs.fill || TRANSPARENT);
+        this.texture = configs.texture || undefined;
+        this.blurFilter = configs.blurFilter || undefined;
         this.stroke = (configs.stroke || TRANSPARENT);
+        this._opacity = configs.opacity ?? 1;
         // this._strokeWidth = configs.strokeWidth || 0;
         // this._strokeLineDash = configs.strokeLineDash || [];
         this.shadowColor = (configs.shadowColor || TRANSPARENT);
@@ -90,6 +96,18 @@ class BaseShape extends JEventTarget {
         if(this.jcanvas) {
             this._materialdirty = true;
             addDirtyWork(this._bindFlushColor)
+            addDirtyWork(this.jcanvas._bindMeshAndRender);
+        }
+    }
+    set texture(value) {
+        if(value) {
+            this._textureInstance = value;
+        } else {
+            this._textureInstance = undefined;
+        }
+        if(this.jcanvas) {
+            this._materialdirty = true;
+            this._texturedirty = true;
             addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
@@ -145,6 +163,11 @@ class BaseShape extends JEventTarget {
     get fill() {
         return this._fill.toString();
     }
+
+    get texture() {
+        return this._textureInstance;
+    }
+    
     get stroke() {
         return this._stroke.toString();
     }
@@ -170,6 +193,10 @@ class BaseShape extends JEventTarget {
     }
     get visible() {
         return this._visible;
+    }
+
+    get useTexture() {
+        return false;
     }
 
     flushColor() {
@@ -275,6 +302,11 @@ class BaseShape extends JEventTarget {
         m20, m21, 
     ) {
         mat3.set(this._localTransform, m00, m01, 0, m10, m11, 0, m20, m21, 1)
+    }
+
+
+    applyFilter(filter, options) {
+        this.filters.push(filter);
     }
 }
 

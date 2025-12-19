@@ -19,6 +19,7 @@ class InstanceConfig {
         this._instance = instance;
         this._condition = configMeta.condition;
         this._getConfigFnName = configMeta.fnName;
+        this._getConfigFn = configMeta.getConfig;
         this._indexShift = configMeta.idx / configMeta.total;
         this.updateConfig();
     }
@@ -34,8 +35,11 @@ class InstanceConfig {
 
     updateConfig() {
         this._checkState();
-        if(this._enable) {
+        if(this._enable && this._getConfigFnName) {
             Object.assign(this._config,  this._instance[this._getConfigFnName]());
+        }
+        if(this._enable &&  this._getConfigFn) {
+            Object.assign(this._config,  this._getConfigFn(this._instance));
         }
     }
 

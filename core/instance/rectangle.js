@@ -325,7 +325,7 @@ class Rectangle extends Shape {
     getShapeConfig() {
         const { 
             w, h, strokeWidth, borderRadius, _zIndex, _currentMat, 
-            _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
+            _colors, texture, _opacity, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
             _strokeLineDash
          } = this;
         //  console.log(_zIndex);
@@ -334,8 +334,9 @@ class Rectangle extends Shape {
             w, h, 
             borderRadius,
             strokeWidth,
-            _strokeLineDash,
+            _opacity,
             _zIndex, 
+            texture,
             _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
             type: Rectangle.type,
             mat: paddingMat3(_currentMat)

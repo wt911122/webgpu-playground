@@ -2,9 +2,25 @@ function toFixed (str) {
     return str.toFixed(0);
 }
 function extractColor(json) {
-    if(json && json.visible !== false && json.color)
-        return `rgba(${toFixed(json.color.r * 255)}, ${toFixed(json.color.g * 255)}, ${toFixed(json.color.b * 255)}, ${json.color.a*(json.opacity ||1)})`;
-    return '';
+    if(json && json.type === 'GRADIENT_LINEAR') {
+        return {
+            type: 'GRADIENT_LINEAR',
+            colorstops: json.gradientStops.map(c => ({
+                offset: c.position,
+                color: `rgba(${toFixed(c.color.r * 255)}, ${toFixed(c.color.g * 255)}, ${toFixed(c.color.b * 255)}, ${c.color.a})`,
+            }))
+        }
+    }
+    if(json && json.type === 'SOLID' && json.visible !== false && json.color) {
+        return {
+            type: 'SOLID',
+            color: `rgba(${toFixed(json.color.r * 255)}, ${toFixed(json.color.g * 255)}, ${toFixed(json.color.b * 255)}, ${json.color.a * (json.opacity ?? 1)})`
+        }
+    }
+       
+    return {
+        type: 'UNKNOWN'
+    }
 }
 function extractRotation(rotate) {
     return rotate// -Math.PI/180 * rotate;
@@ -46,37 +62,63 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
     //     relativeX = parentAbsPos.width/2;
     //     console.log(relativeX)
     // }
-    if(type === 'INSTANCE' || type === 'FRAME' || type === 'GROUP' ) {
+    if(type === 'INSTANCE' || type === 'FRAME' || type === 'GROUP' || type === 'BOOLEAN_OPERATION') {
         Object.assign(t, {
             type: 'Group',
             x: relativeX,
             y: relativeY,
-            clipsContent: json.clipsContent
+            clipsContent: (json.clipsContent || type === 'BOOLEAN_OPERATION')
         });
-        t.children = [
-            {
-                type: type === 'FRAME' ? 'FrameRectangle' : 'GroupRectangle',
-                x: 0, y: 0,
-                width, height,
-                fill: extractColor(json.fills[0]),
-                stroke: extractColor(json.strokes[0]),
-                rotation: json.rotation ? extractRotation(json.rotation) : 0,
-                strokeWidth: extractStrokeWidth(json),
-                borderRadius: extractBorderRadius(json),
-                constraints: json.constraints,
-                id: json.id,
-            }
-        ]
+        if(type === 'BOOLEAN_OPERATION') {
+            t.children = [
+                {
+                    type: 'GroupPath',
+                    x: relativeX,
+                    y: relativeY,
+                    width, height,
+                    opacity: json.opacity,
+                    paths: [
+                        ...json.fillGeometry.map(p => ({ data: p.path, type: 'fill' })),
+                        ...json.strokeGeometry.map(p => ({ data: p.path, type: 'stroke' }))
+                    ],
+                    strokeWidth: json.strokeWeight,
+                    rotation: json.rotation ? extractRotation(json.rotation) : 0,
+                    fill: extractColor(json.fills[0]),
+                    stroke: extractColor(json.strokes[0]),
+                    relativeTransform: [[1,0,0],[0,1,0]],
+                    effects: json.effects,
+                    id: json.id,
+                }
+            ]
+        } else {
+            t.children = [
+                {
+                    type: type === 'FRAME' ? 'FrameRectangle' : 'GroupRectangle',
+                    x: 0, y: 0,
+                    width, height,
+                    opacity: json.opacity,
+                    fill: extractColor(json.fills[0]),
+                    stroke: extractColor(json.strokes[0]),
+                    rotation: json.rotation ? extractRotation(json.rotation) : 0,
+                    strokeWidth: extractStrokeWidth(json),
+                    borderRadius: extractBorderRadius(json),
+                    constraints: json.constraints,
+                    id: json.id,
+                }
+            ]
+        }
+
 
     } else if(type === 'RECTANGLE') {
         type = 'Rectangle';
-        const absoluteRenderBounds = json.absoluteRenderBounds;
+        const absoluteRenderBounds = json.absoluteRenderBounds || json.absoluteBoundingBox;
         Object.assign(t, {
             type,
             x: absoluteRenderBounds.x - parentAbsPos.x,
             y: absoluteRenderBounds.y - parentAbsPos.y,
             width: absoluteRenderBounds.width, 
             height: absoluteRenderBounds.height,
+            opacity: json.opacity,
             fill: extractColor(json.fills[0]),
             stroke: extractColor(json.strokes[0]),
             rotation: 0, //extractRotation(json.rotation),
@@ -92,6 +134,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             x: relativeX,
             y: relativeY,
             width, height,
+            opacity: json.opacity,
             paths: [
                 ...json.fillGeometry.map(p => ({ data: p.path, type: 'fill' })),
                 ...json.strokeGeometry.map(p => ({ data: p.path, type: 'stroke' }))
@@ -101,6 +144,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             fill: extractColor(json.fills[0]),
             stroke: extractColor(json.strokes[0]),
             relativeTransform: json.relativeTransform,
+            effects: json.effects
         });
     } else if(type === 'TEXT') {
         type = 'Text';
@@ -114,6 +158,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             textAlignHorizontal: json.style.textAlignHorizontal,
             textAlignVertical: json.style.textAlignVertical,
             lineHeight: json.style.lineHeightPx,
+            opacity: json.opacity,
             color: extractColor(json.fills[0]),
             rotation: json.rotation ? extractRotation(json.rotation) : 0,
             autoWrap: json.style.textAutoResize === "HEIGHT",
@@ -127,6 +172,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             y: relativeY + json.size.y/2,
             width: json.size.x, 
             height: json.size.y,
+            opacity: json.opacity,
             fill: extractColor(json.fills[0]),
             stroke: extractColor(json.strokes[0]),
             rotation: 0, //extractRotation(json.rotation),

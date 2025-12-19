@@ -1,4 +1,5 @@
 import InstanceConfig from './config';
+import { paddingMat3 } from './utils/transform';
 
 class ShaperPainter {
     pipelineRenderer = null;
@@ -10,6 +11,7 @@ class ShaperPainter {
     // _configLength = 0;
 
     _renderCreator = null;
+    _renderTextureCreator = null;
     
     _beforeRenderFn = null;
     _renderFn = null;
@@ -24,6 +26,7 @@ class ShaperPainter {
     constructor(meta) {
         Object.assign(this, {
             _renderCreator: meta.generateRender,
+            _renderTextureCreator: meta.generateTextureRender,
             static: meta.static ?? false,
         });
     }
@@ -53,9 +56,9 @@ class ShaperPainter {
             cacheContext = undefined;
         }
 
-        this._collectInstanceConfig = (instance, config) => {
+        this._collectInstanceConfig = (instance, config, jcanvas) => {
             if(collecInstanceConfig) {
-                collecInstanceConfig(instance, config)
+                collecInstanceConfig(instance, config, jcanvas)
             }
         }
 
@@ -86,14 +89,48 @@ class ShaperPainter {
         if(onPainterCreate) {
             onPainterCreate(this, context);
         }
+
+        if(this._renderTextureCreator) {
+            const { 
+                renderTexture
+            } = this._renderTextureCreator(context);
+            this._renderTexture = (instance, config, texture) => {
+                renderTexture(instance, config, texture)
+            }
+        }
     }
 
-    collectConfig(instance) {
+    collectFilterPainterConfig(instance, jcanvas) {
+        let instanceConfig = this.configsWeakMap.get(instance);
+        if(!instanceConfig) {
+            instanceConfig = new InstanceConfig(instance, {
+                getConfig() {
+                    return {
+                        _zIndex: instance._zIndex,
+                        _opacity: instance._opacity,
+                        mat: paddingMat3(instance._currentMat)
+                    }
+                }
+            });
+            this.configsWeakMap.set(instance, instanceConfig);
+            this.configs.push(instanceConfig);
+        } else {
+           instanceConfig.updateConfig();
+        }
+        if(instance._geodirty) {
+            this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+        }
+        return true;
+    }
+
+    collectConfig(instance, jcanvas) {
         const configMeta = this.getConfigFnMeta(instance);
         if(!configMeta) {
             return false;
         }
+
         let instanceConfig = this.configsWeakMap.get(instance);
+        
         if(!instanceConfig) {
             instanceConfig = new InstanceConfig(instance, configMeta);
             this.configsWeakMap.set(instance, instanceConfig);
@@ -102,7 +139,7 @@ class ShaperPainter {
            instanceConfig.updateConfig();
         }
         if(instance._geodirty) {
-            this._collectInstanceConfig(instance, instanceConfig);
+            this._collectInstanceConfig(instance, instanceConfig, jcanvas);
         }
         // console.log(config)
         // this._configLength = config.length;
@@ -159,6 +196,7 @@ class PainterRegistry {
     regist(meta) {
         const painter = new ShaperPainter({
             generateRender: meta.generateRender,
+            generateTextureRender: meta.generateTextureRender,
             static: meta.static,
         })
         console.log(painter.static)
@@ -166,6 +204,9 @@ class PainterRegistry {
         return painter;
     }
 
+    getPainter(name) {
+        return this._painters.get(name);
+    }
 
     iterate(callback, filter) {
         this._painters.forEach(painter => {

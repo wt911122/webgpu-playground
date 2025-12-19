@@ -20,7 +20,8 @@ struct PerObjectUniforms {
     // 顺序遵循 CSS 标准: x=Top, y=Right, z=Bottom, w=Left
     zindex: f32,
     sdfType: f32,
-    useLineDash: f32,
+    opacity: f32,
+    useTexture: f32,
     borderWidths: vec4f, 
     borderRadius: vec4f,
     fill: vec4f,
@@ -32,6 +33,9 @@ struct PerObjectUniforms {
 };
 @group(0) @binding(2) var<uniform> obj: PerObjectUniforms;
 
+@group(1) @binding(0) var textureSource: texture_2d<f32>;
+@group(1) @binding(1) var textureSampler: sampler;
+
 struct Vertex {
     @location(0) vertexPos: vec2f,
 };
@@ -41,6 +45,7 @@ struct VertexOutput {
   @builtin(position) position : vec4f,
   @location(0) fragPosition: vec2f,
   @location(1) radius: vec2f,
+  @location(2) texcoord: vec2f
 }
 
 @vertex
@@ -53,11 +58,11 @@ fn vs(
     output.radius = radius;
     
     // 计算片元相对于中心的坐标
-    var fragPosition = size * vert.vertexPos * 2.0; // 假设 vertexPos 是 -0.5 到 0.5，乘以2变单位化，再乘size/2
+    // var fragPosition = size * vert.vertexPos * 2.0; // 假设 vertexPos 是 -0.5 到 0.5，乘以2变单位化，再乘size/2
     // 注意：如果 vert.vertexPos 本身是 -1.0 到 1.0，则不需要 * 2.0。
     // 根据原代码 var fragPosition = size * vert.vertexPos; 推测 vertexPos 可能是 -1 到 1 或者 size 已经是全尺寸。
     // 这里保持原逻辑：
-    fragPosition = obj.size/2.0 * vert.vertexPos * 2.0; // 修正：通常 vertexPos 是 -0.5~0.5，这里确保覆盖整个 size
+    var fragPosition = obj.size * vert.vertexPos; // 修正：通常 vertexPos 是 -0.5~0.5，这里确保覆盖整个 size
     
     // 原代码逻辑：
     // var size = obj.size/2;
@@ -77,12 +82,16 @@ fn vs(
         * vec3f(position, 1)).xy, (zindexTop - obj.zindex - 1)/zindexTop, 1);
         
     output.fragPosition = original_frag_pos;
+    if(obj.useTexture > 0) {
+        output.texcoord = (vert.vertexPos + vec2f(1,1)) / 2;
+    }
     return output;
 }
 
 fn normalizeColor(color: vec4f) -> vec4f {
   return vec4f(color.rgb * color.a / 255.0, color.a);
 }
+
 
 @fragment
 fn fs(fragData: VertexOutput) -> @location(0) vec4f {
@@ -91,10 +100,21 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     
     // 获取边框配置 (Top, Right, Bottom, Left)
     // var borders = obj.borderWidths; 
-    // var borderRadius = obj.borderRadius;
+    var borderRadius = obj.borderRadius;
+    var b = min(v_Radius.x, v_Radius.y);
+    borderRadius.x = min(borderRadius.x, b);
+    borderRadius.y = min(borderRadius.y, b);
+    borderRadius.z = min(borderRadius.z, b);
+    borderRadius.w = min(borderRadius.w, b);
     
     // 颜色处理
-    var fillColor = vec4f(obj.fill.rgb * obj.fill.a / 255.0, obj.fill.a);
+    var fillColor: vec4f;
+    if(obj.useTexture > 0) {
+        fillColor =  textureSample(textureSource, textureSampler, fragData.texcoord);
+    } else {
+        fillColor = vec4f(obj.fill.rgb * obj.fill.a / 255.0, obj.fill.a);
+    }
+    
     var strokeColor = vec4f(obj.stroke.rgb * obj.stroke.a / 255.0, obj.stroke.a); // 假设传入时已经处理好，或者按需 /255
     // 如果 strokeColor 也需要像 fill 一样归一化：
     // strokeColor = vec4f(obj.stroke.rgb * obj.stroke.a / 255.0, obj.stroke.a);
@@ -105,7 +125,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     // v_Radius 是半宽和半高
     var d_outer:f32;
     if(obj.sdfType == 1.0) {
-        var borderRadius = obj.borderRadius;
+        // var borderRadius = obj.borderRadius;
         d_outer = sdRectangle(v_FragCoord, v_Radius, borderRadius);
     } 
     if(obj.sdfType == 2.0) {
@@ -122,7 +142,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     var d_inner:f32 ;
     if(obj.sdfType == 1.0) {
         var borders = obj.borderWidths; 
-        var borderRadius = obj.borderRadius;
+        // var borderRadius = obj.borderRadius;
         // 2. 计算内轮廓 SDF (用于区分填充和边框)
         // 计算内矩形的尺寸：总尺寸减去左右和上下边框
         // obj.size 是全尺寸，v_Radius 是半尺寸
@@ -148,7 +168,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     }
     if(obj.sdfType == 2.0) {
         var borders = obj.borderWidths; 
-        var innerHalfSize = v_Radius - borders.w;
+        var innerHalfSize = v_Radius - vec2f(borders.w, borders.w);
         d_inner = sdEllipse(v_FragCoord, innerHalfSize);
     }
 
@@ -167,7 +187,7 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
     // 处理边缘抗锯齿 (外边缘透明度)
     color.a *= alpha_outer;
 
-    return color;
+    return color * obj.opacity;
 }
 
 // 矩形 SDF 函数

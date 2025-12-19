@@ -73,3 +73,8 @@ build.sh
 
 src-copy/
 package-lock.json
+
+demo-*.json
+*figma*.json
+
+figmatoken.env

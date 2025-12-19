@@ -20,6 +20,8 @@ class Path extends Shape {
 
     _strokeWidth = 0;
 
+    _filters = [];
+
     get x() {
         return this._position[0];
     }
@@ -270,10 +272,13 @@ class Path extends Shape {
 
     getMeshConfig() {
         const { 
-            path, _zIndex, _colors, _currentMat
+            path, _zIndex, _colors, texture, _currentMat, _opacity, blurFilter
         } = this;
         return {
             path: this.path,
+            texture,
+            blurFilter,
+            _opacity,
             _zIndex, 
             _colors, 
             mat: paddingMat3(_currentMat)
@@ -296,11 +301,23 @@ class Path extends Shape {
         }
     }
 
+    get useTexture() {
+        return this._filters.length > 0;
+    }
+
+    get filters() {
+        return this._filters;
+    }
+
+    applyFilter(filter, options) {
+        this._filters.push({ filter, options })
+    }
+
     static attachPainter(painter) {
         return [
             {
                 ctor: Path,
-                condition: (instance) => instance.path.closePath && instance._fill.opacity !== 0,
+                condition: (instance) => instance.path.closePath && (instance._fill.opacity !== 0 || instance.texture),
                 painter: 'MeshPainter',
                 configGetter: 'getMeshConfig'
             }, 

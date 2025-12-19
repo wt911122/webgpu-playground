@@ -1,5 +1,10 @@
-import JCanvas from './jcanvas';
-
+import JCanvas, { 
+    createLinearGradientTextureCanvas, 
+    defaultLinearOptions,
+    createRadialGradientTextureCanvas,
+    defaultRadialOptions,
+    createImageTexture
+} from './jcanvas';
 // import SDFPainter from './shape/sdf';
 // import GridPainter from './shape/grid';
 // import PolylinePainter from './shape/polyline/painter-new.js';
@@ -17,12 +22,15 @@ import opentype from 'opentype.js';
 
 // import demoFigmaJson from './demo-figmajson.json';
 import { iterator } from './resolve-figmajson';
-// import figmademojson from './figmademo.json';
+import figmademojson from './figmademo.json';
 // import figmademojsonBig from './demo-figmajson-big.json';
 // import untitlefigmajson from './untitlefigmajson2.json';
 // import arrowFigmajson from './arrow-figmajson.json';
 // import untitlefigmajson from './untitlefigmajson2.json';
 import figmademojsonBig2 from './demo-figmajson-big2.json';
+import knowlegetitlejson from './demo-figmajson-knowlegetitle.json'
+import touxiangjson from './figma-touxiang-json.json';
+import figmatoken from './figmatoken.env?raw';
 
 (async function () {
     // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
@@ -78,6 +86,43 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
     // const json = arrowFigmajson.nodes["181:1108"].document;
     // iterator(json, t)
     // console.log(json, t)
+
+    function resolveFillColor(data) {
+        const type = data.type;
+        if(type === 'SOLID') {
+            return {
+                fill: data.color
+            }
+        }
+        if(type === 'GRADIENT_LINEAR') {
+            return {
+                texture: createLinearGradientTextureCanvas({
+                    ...defaultLinearOptions,
+                    colorStops: data.colorstops
+                })
+            }
+        }
+        return {
+            fill: '',
+        };
+    }
+    function resolveStrokeColor(data) {
+        const type = data.type;
+        if(type === 'SOLID') {
+            return {
+                stroke: data.color
+            };
+        }
+        // if(type === 'GRADIENT_LINEAR') {
+        //     return createLinearGradientTextureCanvas({
+        //         ...defaultLinearOptions,
+        //         colorStops: data.colorstops
+        //     })
+        // }
+        return {
+            stroke: '',
+        };
+    }
     function iteratorCreate(data, group, firstLayer, initx, inity) {
         let shape;
         const type = data.type;
@@ -93,8 +138,9 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
                 y: data.y,
                 width: data.width,
                 height: data.height,
-                fill: data.fill,
-                stroke: data.stroke,
+                opacity: data.opacity,
+                ...resolveFillColor(data.fill),
+                ...resolveStrokeColor(data.stroke),
                 rotation: data.rotation,
                 strokeWidth: {
                     left: data.strokeWidth[0],
@@ -120,23 +166,41 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
                 //     shape.y += group.width/2;
                 // }
             }
-            if(type === 'FrameRectangle' && group.hasMask) {
+            if(type === 'FrameRectangle' || type === 'GroupRectangle') {
+                shape.represent = group;
+            }
+
+            if(type !== 'Rectangle' && group.hasMask) {
                 // console.log('setmask')
                 group.setMask(shape);
             }
             
             group.addToStack(shape);
-        } else if (type === 'Path') {
+        } else if (type === 'Path' || type === 'GroupPath') {
             const pathData = data;
             const rt = data.relativeTransform;
+            const fill = resolveFillColor(data.fill);
+            const stroke = resolveStrokeColor(data.stroke);
+            const effects = data.effects;
             data.paths.forEach(p => {
+                const data = {
+                    fill: '',
+                    stroke: '',
+                    texture: undefined,
+                }
+                if(p.type === 'fill') {
+                    Object.assign(data, fill)
+                }
+                if(p.type === 'stroke') {
+                    Object.assign(data, stroke)
+                }
                 shape = Path({
                     // x: pathData.x,
                     // y: pathData.y,
                     // rotation: pathData.rotation,
+                    opacity: pathData.opacity,
                     path: p.data,
-                    fill: p.type === 'fill' ? pathData.fill : '',
-                    stroke: p.type === 'stroke' ? pathData.stroke : '',
+                    ...data,
                     strokeWidth: pathData.strokeWidth,
                 });
                 shape.applyLocalTransform(
@@ -144,6 +208,19 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
                     rt[0][1],rt[1][1],
                     rt[0][2],rt[1][2]);
                 shape.decomposeLocalTransform();
+                if(effects.length > 0) {
+                    effects.forEach(effect => {
+                        if(effect.type === 'LAYER_BLUR') {
+                            shape.applyFilter('BlurFilter', {
+                                blur: effect.radius
+                            })
+                        }
+                    });
+                }
+                if(type === 'GroupPath' && group.hasMask) {
+                    // console.log('setmask')
+                    group.setMask(shape);
+                }
                 // shape.origin = [pathData.width/2,pathData.height/2]
                 // shape.flushTransform(true);
                 group.addToStack(shape);
@@ -158,7 +235,7 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
                 textAlignHorizontal: data.textAlignHorizontal,
                 textAlignVertical: data.textAlignVertical,
                 lineHeight: data.lineHeight,
-                fill: data.color,
+                ...resolveFillColor(data.color),
                 fontFamily: 'PingFangSC-Regular',
                 fontSize: data.fontSize,
                 autoWrap: data.autoWrap,
@@ -171,8 +248,9 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
                 cy: data.y,
                 width: data.width,
                 height: data.height,
-                fill: data.fill,
-                stroke: data.stroke,
+                opacity: data.opacity,
+                ...resolveFillColor(data.fill),
+                ...resolveStrokeColor(data.stroke),
                 // rotation: data.rotation,
                 strokeWidth: data.strokeWidth,
             });
@@ -221,6 +299,7 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
     function generateByFigma(json) {
         for(let key in json.nodes) {
             const node = json.nodes[key];
+            if(node.type === '')
             generateByFigmaCanvas(node.document)
         }
     }
@@ -234,7 +313,7 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
             if(node.document.type === 'CANVAS') {
                 generateByFigmaCanvas(node.document);
             }
-            if(node.document.type ===  "FRAME") {
+            if(node.document.type ===  "FRAME" || node.document.type ===  "INSTANCE") {
                 generateByFigmaDocument(node.document);
             }
         }
@@ -242,11 +321,16 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
     // generateByFigma(figmademojsonBig);
 
     const showFigmaButton = document.getElementById('showFigma');
-    const filekeyinput = document.getElementById('filekey');
-    const nodeidinput = document.getElementById('nodeid');
+    // const filekeyinput = document.getElementById('filekey');
+    const figmaURL = document.getElementById('figmaURL');
     const FIGMA_TOKENinput = document.getElementById('FIGMA_TOKEN');
+    FIGMA_TOKENinput.value = figmatoken;
     showFigmaButton.addEventListener('click', () => {
-        fetch(`https://api.figma.com/v1/files/${filekeyinput.value}/nodes?ids=${nodeid.value}&geometry=paths`, {
+        const url = new URL(figmaURL.value);
+        const res = /\/design\/(.+)\//.exec(url.pathname);
+        const filekey = res[1];
+        const nodeid = url.searchParams.get('node-id');
+        fetch(`https://api.figma.com/v1/files/${filekey}/nodes?ids=${nodeid}&geometry=paths`, {
             headers: {
                 'X-Figma-Token': FIGMA_TOKENinput.value
             }
@@ -254,26 +338,134 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
             .then(response => response.json())
             .then(data => {
                 stage.clear();
-                generateByFigma(data);
+                loadFromFigma(data);
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
-    // generateByFigma(figmademojsonBig2)
+    loadFromFigma(figmademojsonBig2)
 
-    console.log(stage); 
-    
+    // console.log(stage); 
+    /* 8const response = await fetch('../assets/Di-3d.png');
+    const imageBitmap = await createImageBitmap(await response.blob());
+    const imageTexture = createImageTexture(imageBitmap);
+    const imageTextureorigin = createImageTexture(imageBitmap);
 
+    const linearGradientTexture = createLinearGradientTextureCanvas({
+        ...defaultLinearOptions,
+        colorStops: [
+            {
+                "offset": 0,
+                "color": "rgba(161, 133, 255, 1)"
+            },
+            {
+                "offset": 1,
+                "color": "rgba(150, 192, 255, 1)"
+            }
+        ]
+    });
+    const linearGradientTextureorigin = createLinearGradientTextureCanvas({
+        ...defaultLinearOptions,
+        colorStops: [
+            {
+                "offset": 0,
+                "color": "rgba(161, 133, 255, 1)"
+            },
+            {
+                "offset": 1,
+                "color": "rgba(150, 192, 255, 1)"
+            }
+        ]
+    });
+    const radialGradientTexture = createRadialGradientTextureCanvas({
+        ...defaultRadialOptions,
+        colorStops: [
+            {
+                offset: 0,
+                color: 'rgba(161, 133, 255, 1)'
+            },
+            {
+                offset: 1,
+                color: 'rgba(255, 255, 255, 1)'
+            }
+        ]
+    })
+
+    const path2 = Path({
+        path: "M0,0L200,0L200,200L0,200Z",
+        opacity: 1,
+        texture: linearGradientTexture,
+        // strokeWidth: 2,
+        stroke: 'black',
+    })
+    path2.applyFilter('BlurFilter', {
+        filterSize: 80,
+        iterations: 6,
+        blur: 160
+    });
+    stage.addToStack(path2);
+
+    const path3 = Path({
+        x: 400,
+        path: "M0,0L200,0L200,200L0,200Z",
+        opacity: 1,
+        texture: linearGradientTextureorigin,
+        strokeWidth: 2,
+        blurFilter: true,
+        stroke: 'black',
+    });
+    stage.addToStack(path3);
+
+     const path4 = Path({
+        y: 320,
+        path: "M0,0L200,0L200,200L0,200Z",
+        opacity: 1,
+        texture: imageTexture,
+        // strokeWidth: 2,
+        stroke: 'black',
+    })
     
+    path4.applyFilter('BlurFilter', {
+        blur: 160
+    });
+    stage.addToStack(path4);
+
+    const path5 = Path({
+        x: 400,
+        y: 320,
+        path: "M0,0L200,0L200,200L0,200Z",
+        opacity: 1,
+        texture: imageTextureorigin,
+        strokeWidth: 2,
+        blurFilter: true,
+        stroke: 'black',
+    });
+    stage.addToStack(path5);*/
+
     //  const circle = Ellipse({
-    //     cx: 100,
-    //     cy: 50,
+    //     cx: 300,
+    //     cy: 300,
     //     width: 200,
-    //     height: 200,
-    //     fill: 'rgb(255, 0, 255)',
+    //     height: 140,
+    //     // fill: 'rgb(255, 255, 0)',
+    //     texture: radialGradientTexture,
     //     stroke: 'black',
-    //     strokeWidth: 2,
+    //     strokeWidth: 1,
     // });
     // stage.addToStack(circle);
+
+    //   const rect2 = Rectangle({
+    //     x: 300,
+    //     y: 500,
+    //     width: 200,
+    //     height: 140,
+    //     // fill: 'rgb(255, 255, 0)',
+    //     texture: radialGradientTexture,
+    //     stroke: 'black',
+    //     strokeWidth: 1,
+    // });
+    // stage.addToStack(rect2);
+
+
     // circle.addEventListener('mouseenter', onMouseEnter)
     // circle.addEventListener('mouseleave', onMouseLeave)
 

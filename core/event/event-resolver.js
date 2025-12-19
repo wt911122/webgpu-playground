@@ -35,7 +35,11 @@ class JDragDropEvent extends JEvent {
 function EventResolver() {
 
     function checkTarget(target) {
+        if(target.represent) {
+            return target.represent;
+        }
         let t = target;
+
         while(t.parent) {
             if(t.parent.lock) {
                 return t.parent;
