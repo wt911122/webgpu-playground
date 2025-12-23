@@ -62,6 +62,8 @@ class BaseShape extends JEventTarget {
     _geodirty = true;
     
     _tempP = vec2.create();
+    w = 0;
+    h = 0;
 
 
     constructor(configs = {}) {
@@ -88,6 +90,93 @@ class BaseShape extends JEventTarget {
         // if(configs.scale) {
         //     this._scale = configs.scale;
         // }
+    }
+
+    get x() {
+        return this._position[0];
+    }
+
+    set x(value){
+        this._position[0] = value;
+    }
+
+    get y() {
+        return this._position[1];
+    }
+
+    set y(value){
+        this._position[1] = value;
+    }
+    get rotation() {
+        return this._rotation;
+    }
+
+    set rotation(value) {
+        if (this._rotation !== value) {
+            this._rotation = value;
+        }
+    }
+    get angle() {
+        return this.rotation * RAD_TO_DEG;
+    }
+
+    set angle(value) {
+        this.rotation = value * DEG_TO_RAD;
+    }
+
+    set width(val) {
+        this.w = val;
+        this._pivot[0] = val/2;
+    }
+
+    set height(val) {
+        this.h = val;
+        this._pivot[1] = val/2;
+    }
+    get width() {
+        return this.w;
+    }
+
+    get height() {
+        return this.h;
+    }
+    get position() {
+        return this._position;
+    }
+
+    set position(value){
+        vec2.copy(this._position, value);
+    }
+    get pivot() {
+        return this._pivot;
+    }
+
+    set pivot(value){
+        vec2.copy(this._pivot, value);
+    }
+
+    get scale() {
+        return this._scale;
+    }
+
+    set scale(value){
+        vec2.copy(this._scale, value);
+    }
+
+    get origin() {
+        return this._origin;
+    }
+
+    set origin(value){
+        vec2.copy(this._origin, value);
+    }
+
+    get position() {
+        return this._position;
+    }
+
+    set position(value){
+        vec2.copy(this._position, value);
     }
 
     set fill(value) {

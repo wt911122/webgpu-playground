@@ -180,7 +180,7 @@ function SmoothPolyPainter() {
             } = config.getConfig();
             const points_arr = preparePointsBuffer(
                 path, 
-                JOINT_TYPE.JOINT_BEVEL,
+                JOINT_TYPE.JOINT_MITER,
                 JOINT_TYPE.CAP_BUTT); 
             
             const pointArrLength = config.getPainterConfig('PointArrLength');
@@ -329,6 +329,7 @@ function _preparePointsBuffer(
 ) {
     let len = points.length;
     let newLen = 2;
+    const closePath = points.closePath;
 
     // 1. remove equal points
     for (let i = 2; i < len; i += 2)
@@ -391,7 +392,7 @@ function _preparePointsBuffer(
     newLen += 2;
 
     points.length = len = newLen;
-
+    
     const verts = [];
     const joints = [];
     const joint = jointType;
@@ -401,19 +402,23 @@ function _preparePointsBuffer(
     let prevX; 
     let prevY;
 
-    prevX = points[2];
-    prevY = points[3];
-    if (cap === JOINT_TYPE.CAP_ROUND)
+    if (closePath)
     {
-        verts.push(points[0], points[1]);
+        prevX = points[len - 2];
+        prevY = points[len - 1];
         joints.push(JOINT_TYPE.NONE);
-        joints.push(JOINT_TYPE.CAP_ROUND);
-        prevCap = 0;
-    }
-    else
-    {
-        prevCap = cap;
-        joints.push(JOINT_TYPE.NONE);
+    } else {
+        prevX = points[2];
+        prevY = points[3];
+        if (cap === JOINT_TYPE.CAP_ROUND) {
+            verts.push(points[0], points[1]);
+            joints.push(JOINT_TYPE.NONE);
+            joints.push(JOINT_TYPE.CAP_ROUND);
+            prevCap = 0;
+        } else {
+            prevCap = cap;
+            joints.push(JOINT_TYPE.NONE);
+        }
     }
 
     verts.push(prevX, prevY);
@@ -422,17 +427,29 @@ function _preparePointsBuffer(
         const y1 = points[i + 1];
         let endJoint = joint;
 
-        if (i + 2 >= len) {
-            endJoint = JOINT_TYPE.NONE;
-        } else if (i + 4 >= len) {
-            if (cap === JOINT_TYPE.CAP_ROUND) {
-                endJoint = JOINT_TYPE.JOINT_CAP_ROUND;
+        if (i + 2 >= len)
+        {
+            if (!closePath)
+            {
+                endJoint = JOINT_TYPE.NONE;
             }
-            if (cap === JOINT_TYPE.CAP_BUTT) {
-                endJoint = JOINT_TYPE.JOINT_CAP_BUTT;
-            }
-            if (cap === JOINT_TYPE.CAP_SQUARE) {
-                endJoint = JOINT_TYPE.JOINT_CAP_SQUARE;
+        }
+        else if (i + 4 >= len)
+        {
+            if (!closePath)
+            {
+                if (cap === JOINT_TYPE.CAP_ROUND)
+                {
+                    endJoint = JOINT_TYPE.JOINT_CAP_ROUND;
+                }
+                if (cap === JOINT_TYPE.CAP_BUTT)
+                {
+                    endJoint = JOINT_TYPE.JOINT_CAP_BUTT;
+                }
+                if (cap === JOINT_TYPE.CAP_SQUARE)
+                {
+                    endJoint = JOINT_TYPE.JOINT_CAP_SQUARE;
+                }
             }
         }
 
@@ -446,8 +463,15 @@ function _preparePointsBuffer(
         prevY = y1;
     }
 
-    verts.push(points[len - 4], points[len - 3]);
-    joints.push(JOINT_TYPE.NONE);
+    if (closePath) {
+        verts.push(points[0], points[1]);
+        joints.push(JOINT_TYPE.NONE);
+        verts.push(points[2], points[3]);
+        joints.push(JOINT_TYPE.NONE);
+    } else {
+        verts.push(points[len - 4], points[len - 3]);
+        joints.push(JOINT_TYPE.NONE);
+    }
 
     let foundTriangle = false;
     

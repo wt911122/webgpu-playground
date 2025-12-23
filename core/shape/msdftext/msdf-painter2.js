@@ -171,16 +171,16 @@ function MSDFTextPainter() {
 
             const textArray = new Float32Array(textBuffer.getMappedRange());
             let offset = 0; // Accounts for the values managed by MsdfText internally.
-
+            const _lineHeight = lineHeight || fontSize;
             let measurements;
             if (textAlignHorizontal === 'CENTER') {
-                measurements = measureText(font, fontSize, content, lineHeight, autoWrap ? definedWidth : undefined, ellipseEnd);
+                measurements = measureText(font, fontSize, content, _lineHeight, autoWrap ? definedWidth : undefined, ellipseEnd);
                 const w = definedWidth || measurements.width;
                 measureText(
                     font,
                     fontSize,
                     content,
-                    lineHeight,
+                    _lineHeight,
                     autoWrap ? definedWidth : undefined,
                     ellipseEnd,
                     (textX, textY, line, char) => {
@@ -197,7 +197,7 @@ function MSDFTextPainter() {
                     font,
                     fontSize,
                     content,
-                    lineHeight,
+                    _lineHeight,
                     autoWrap ? definedWidth : undefined,
                     ellipseEnd,
                     (textX, textY, line, char) => {
@@ -564,10 +564,10 @@ function measureText(
 
     lineWidths.push(textOffsetX);
     maxWidth = Math.max(maxWidth, textOffsetX);
-
+    console.log(lineWidths.length, _lineHeight, lineHeight)
     return {
         width: maxWidth * ratio,
-        height: lineWidths.length * _lineHeight,
+        height: (ellipsis ? 1 : lineWidths.length) * lineHeight,
         lineWidths,
         printedCharCount,
     };

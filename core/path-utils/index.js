@@ -42,7 +42,7 @@ export function parse(d) {
                     break;
                 case 'Z':
                     parseZ(command, subpath, control, box);
-                    subpath.closePath = true;
+                    // subpath.closePath = true;
                     break;
             }
 
@@ -75,7 +75,8 @@ function parseM(command, subpath, control, box) {
 function parseZ(command, subpath, control, box) {
     // const firstpath = subpath[0];
     const currpath = subpath[subpath.length-1];
-    currpath.push(currpath[0], currpath[1]);
+    // currpath.push(currpath[0], currpath[1]);
+    currpath.closePath = true;
 }
 
 function parseL(command, subpath, control, box) {

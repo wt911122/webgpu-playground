@@ -1,5 +1,5 @@
 import Shape from '../layer/shape';
-import { mat3, vec2 } from 'gl-matrix';
+import { mat3, vec2, vec3 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
 import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 
@@ -26,91 +26,6 @@ class Rectangle extends Shape {
         top: 0,
         right: 0,
         bottom: 0,
-    }
-
-    get x() {
-        return this._position[0];
-    }
-
-    set x(value){
-        this._position[0] = value + this.width/2;
-    }
-
-    get y() {
-        return this._position[1];
-    }
-
-    set y(value){
-        this._position[1] = value + this.height/2;
-    }
-    get rotation() {
-        return this._rotation;
-    }
-
-    set rotation(value) {
-        if (this._rotation !== value) {
-            this._rotation = value;
-        }
-    }
-    get angle() {
-        return this.rotation * RAD_TO_DEG;
-    }
-
-    set angle(value) {
-        this.rotation = value * DEG_TO_RAD;
-    }
-
-    set width(val) {
-        this.w = val;
-    }
-
-    set height(val) {
-        this.h = val;
-    }
-    get width() {
-        return this.w;
-    }
-
-    get height() {
-        return this.h;
-    }
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
-    }
-    get pivot() {
-        return this._pivot;
-    }
-
-    set pivot(value){
-        vec2.copy(this._pivot, value);
-    }
-
-    get scale() {
-        return this._scale;
-    }
-
-    set scale(value){
-        vec2.copy(this._scale, value);
-    }
-
-    get origin() {
-        return this._origin;
-    }
-
-    set origin(value){
-        vec2.copy(this._origin, value);
-    }
-
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
     }
 
     set borderRadius(value) {
@@ -172,16 +87,22 @@ class Rectangle extends Shape {
         this.borderRadius = borderRadius;
         this.strokeWidth = strokeWidth;
         this.rotation = rotation ?? 0; 
-        this.flushTransform(true);
+        this.updateLocalTransform()
     }
 
     updateBoundingBox() {
-        const { x, y, w, h } = this;
+        /* const { x, y, w, h } = this;
         const lc = this._localBoundingbox;
         vec2.set(lc.LT, -w/2, -h/2);
         vec2.set(lc.RB, +w/2, +h/2);
         vec2.set(lc.LB, -w/2, +h/2);
-        vec2.set(lc.RT, +w/2, -h/2);
+        vec2.set(lc.RT, +w/2, -h/2);*/
+        const { x, y, w, h } = this;
+        const lc = this._localBoundingbox;
+        vec2.set(lc.LT, 0, 0);
+        vec2.set(lc.RB, w, h);
+        vec2.set(lc.LB, 0, h);
+        vec2.set(lc.RT, w, 0);
 
         const { LT, RB, LB, RT } = this._boundingbox;
         vec2.transformMat3(LT, lc.LT, this._currentMat)
@@ -193,8 +114,8 @@ class Rectangle extends Shape {
     }
 
     checkHit(mouseVec) {
-        const width = this.w/2;
-        const height = this.h/2;
+        const width = this.w;
+        const height = this.h;
         if (width <= 0 || height <= 0){
             return false;
         }
@@ -202,8 +123,8 @@ class Rectangle extends Shape {
         vec2.transformMat3(this._tempP, mouseVec, this._currentMatInv);
 
 
-        if (this._tempP[0] >= -width && this._tempP[0] < width) {
-            if (this._tempP[1] >= -height && this._tempP[1] < height) {
+        if (this._tempP[0] >= 0 && this._tempP[0] < width) {
+            if (this._tempP[1] >= 0 && this._tempP[1] < height) {
                 return true;
             }
         }
@@ -213,20 +134,24 @@ class Rectangle extends Shape {
     rotateStart(context) {
         Object.assign(context, {
             rotation: this._rotation,
+            // localMat: mat3.clone(mat),
         });
     }
 
     rotate(context) {
-        const { cp, vecf, vect, rotation } = context;
-        const x = 0;
-        const y = 0;
+        const { cp, vecf, vect, rotation, localMat } = context;
+        const pivot = this._pivot;
         
-        const v1 = [vecf[0] - x, vecf[1] - y];
-        const v2 = [vect[0] - x, vect[1] - y];
+        const v1 = [vecf[0] - pivot[0], vecf[1] - pivot[1]];
+        const v2 = [vect[0] - pivot[0], vect[1] - pivot[1]];
         const angleInRadians = calculateAngle(v1, v2);
         // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        
         this.rotation = rotation + angleInRadians;
-        this.flushTransform(true);
+        this.updateLocalTransform();
+        // vec2.set(this._origin, 0, 0);
+        // this.updateLocalTransform();
+
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
     }
@@ -246,29 +171,32 @@ class Rectangle extends Shape {
         const { cp, vecDelta, vecDeltaP, bounding, scale, position, localMat, localUnitMat } = context;
         let factor;
         if(cp === 'lt') {
-            factor = [-0.5, -0.5]
+            factor = [-1, -1]
             vec2.multiply(vecDelta, vecDelta, [-1,-1])
         }
         if(cp === 'rt') {
-            factor = [0.5, -0.5]
+            factor = [0, -1]
             vec2.multiply(vecDelta, vecDelta, [1,-1])
         }
         if(cp === 'rb') {
-            factor = [0.5, 0.5]
+            factor = [0, 0]
         }
         if(cp === 'lb') {
-            factor = [-0.5, 0.5]
+            factor = [-1, 0]
             vec2.multiply(vecDelta, vecDelta, [-1,1])
         }
 
-        this.width = bounding[0] + vecDelta[0];
-        this.height = bounding[1] + vecDelta[1];
+        const width = bounding[0] + vecDelta[0];
+        const height = bounding[1] + vecDelta[1];
+        // console.log(width, height)
+        this.w = width;
+        this.h = height;
         // console.log(vecDelta)
         vec2.multiply(vecDelta, vecDelta, factor)
         vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
         vec2.add(this.position, position, this._tempVec);
 
-        this.flushTransform();
+        this.updateLocalTransform();
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
         if(this._strokeLineDash.length > 1) {
@@ -276,51 +204,30 @@ class Rectangle extends Shape {
         }
     }
 
-    _updateSkew() {
-        const rotation = this._rotation;
-        const skew = this._skew;
-
-        this._cx = Math.cos(rotation + skew[1]);
-        this._sx = Math.sin(rotation + skew[1]);
-        this._cy = -Math.sin(rotation - skew[0]); // cos, added PI/2
-        this._sy = Math.cos(rotation - skew[0]); // sin, added PI/2
-    }
-
-    flushTransform(updateFactor) {
-        if(updateFactor) {
-            this._updateSkew();
-        }
-        
-        const lt = this._localTransform;
-        const scale = this._scale;
-        const pivot = this._pivot;
+    editBoundaryEnd(context) {
+        // 平移 pivot
+        const newPivot = vec2.fromValues(this.w/2, this.h/2);
+        const _localTransform = this._localTransform;
+        const a = _localTransform[0];
+        const b = _localTransform[1];
+        const c = _localTransform[3];
+        const d = _localTransform[4];
+        const tx = _localTransform[6];
+        const ty = _localTransform[7];
+        const currentPivot = this._pivot;
         const origin = this._origin;
         const position = this._position;
-
-        const sx = scale[0];
-        const sy = scale[1];
-
-        const px = pivot[0];
-        const py = pivot[1];
-
-        const ox = -origin[0];
-        const oy = -origin[1];
-
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx * sx;
-        lt[1] = this._sx * sx;
-        lt[3] = this._cy * sy;
-        lt[4] = this._sy * sy;
-
-        lt[6] = position[0] - ((px * lt[0]) + (py * lt[3])) // Pivot offset
-            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
-            - ox; // Remove origin to maintain position
-        lt[7] = position[1] - ((px * lt[1]) + (py * lt[4])) // Pivot offset
-            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
-            - oy;
-
+        const cx = a * currentPivot[0] + c * currentPivot[1] - currentPivot[0];
+        const cy = b * currentPivot[0] + d * currentPivot[1] - currentPivot[1];
+        const ncx = a * newPivot[0] + c * newPivot[1] - newPivot[0];
+        const ncy = b * newPivot[0] + d * newPivot[1] - newPivot[1];
+        this._position[0] = position[0] - cx + ncx;
+        this._position[1] = position[1] - cy + ncy;
+        this.pivot = newPivot;
+        this.updateLocalTransform();
+        this.updateWorldMatrix(this.parent.matrix);
+        this.markMaterialDrity();
     }
-
 
     getShapeConfig() {
         const { 
@@ -330,7 +237,7 @@ class Rectangle extends Shape {
          } = this;
         //  console.log(_zIndex);
         return {
-            x:0, y:0,
+            x:w/2, y:h/2,
             w, h, 
             borderRadius,
             strokeWidth,

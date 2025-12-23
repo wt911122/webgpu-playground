@@ -443,6 +443,9 @@ function preparePointsBuffer(
 function _preparePointsBuffer(
     incommingpoints, 
 ) {
+    if(!incommingpoints.closePath) {
+        return [];
+    }
     let lastX;
     let lastY;
     const points = [];
@@ -461,5 +464,6 @@ function _preparePointsBuffer(
         lastX = x;
         lastY = y;
     }
+    points.push(points[0], points[1]);
     return points;
 }

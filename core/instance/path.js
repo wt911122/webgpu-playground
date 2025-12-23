@@ -22,74 +22,9 @@ class Path extends Shape {
 
     _filters = [];
 
-    get x() {
-        return this._position[0];
-    }
+    set width(val) {}
 
-    set x(value){
-        this._position[0] = value;
-    }
-
-    get y() {
-        return this._position[1];
-    }
-
-    set y(value){
-        this._position[1] = value;
-    }
-
-     get rotation() {
-        return this._rotation;
-    }
-
-    set rotation(value) {
-        if (this._rotation !== value) {
-            this._rotation = value;
-        }
-    }
-    get angle() {
-        return this.rotation * RAD_TO_DEG;
-    }
-
-    set angle(value) {
-        this.rotation = value * DEG_TO_RAD;
-    }
-
-    get pivot() {
-        return this._pivot;
-    }
-
-    get skew() {
-        return this._skew;
-    }
-
-    set skew(value){
-        vec2.copy(this._skew, value);
-    }
-
-    get scale() {
-        return this._scale;
-    }
-
-    set scale(value){
-        vec2.copy(this._scale, value);
-    }
-
-    get origin() {
-        return this._origin;
-    }
-
-    set origin(value){
-        vec2.copy(this._origin, value);
-    }
-
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
-    }
+    set height(val) {}
 
     get width()
     {
@@ -124,10 +59,10 @@ class Path extends Shape {
                 const { path, box } =result;
                 this._path = path;
                 const [a, b, c, d] = box;
-                vec2.set(lc.LT, a, b);
+                vec2.set(lc.LT, Math.min(a, 0), Math.min(b, 0));
                 vec2.set(lc.RB, c, d);
-                vec2.set(lc.LB, a, d);
-                vec2.set(lc.RT, c, b);
+                vec2.set(lc.LB, Math.min(a, 0), d);
+                vec2.set(lc.RT, c, Math.min(b, 0));
             } else {
                 this._path = [];
                 // this._contentBox = [0,0,0,0];
@@ -146,7 +81,7 @@ class Path extends Shape {
             vec2.set(lc.LB, 0, 0);
             vec2.set(lc.RT, 0, 0);
         }
-        vec2.set(this._pivot, this.width/2 + lc.LT[0], this.height/2 + lc.LT[1]) 
+        vec2.set(this._pivot, this.width/2, this.height/2) 
         // this.flushTransform();
         // console.log(this._path)
         this.markGeoDirty();
@@ -172,14 +107,19 @@ class Path extends Shape {
         });
     }
     rotate(context) {
-        const { cp, vecf, vect, rotation } = context;
-        const origin = this._origin;
-        const v1 = [vecf[0] - origin[0], vecf[1] - origin[1]];
-        const v2 = [vect[0] - origin[0], vect[1] - origin[1]];
+        const { cp, vecf, vect, rotation, localMat } = context;
+        const pivot = this._pivot;
+        
+        const v1 = [vecf[0] - pivot[0], vecf[1] - pivot[1]];
+        const v2 = [vect[0] - pivot[0], vect[1] - pivot[1]];
         const angleInRadians = calculateAngle(v1, v2);
-        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        
         this.rotation = rotation + angleInRadians;
-        this.flushTransform(true);
+        this.updateLocalTransform();
+        // vec2.set(this._origin, 0, 0);
+        // this.updateLocalTransform();
+
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
     }
@@ -221,53 +161,9 @@ class Path extends Shape {
         vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
         vec2.add(this.position, position, this._tempVec);
 
-        this.flushTransform();
+        this.updateLocalTransform();
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
-    }
-
-    _updateSkew() {
-        const rotation = this._rotation;
-        const skew = this._skew;
-
-        this._cx = Math.cos(rotation + skew[1]);
-        this._sx = Math.sin(rotation + skew[1]);
-        this._cy = -Math.sin(rotation - skew[0]); // cos, added PI/2
-        this._sy = Math.cos(rotation - skew[0]); // sin, added PI/2
-    }
-
-    flushTransform(updateFactor) {
-        if(updateFactor) {
-            this._updateSkew();
-        }
-        
-        const lt = this._localTransform;
-        const scale = this._scale;
-        const pivot = this._pivot;
-        const origin = this._origin;
-        const position = this._position;
-
-        const sx = scale[0];
-        const sy = scale[1];
-
-        const px = pivot[0];
-        const py = pivot[1];
-
-        const ox = -origin[0];
-        const oy = -origin[1];
-
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx * sx;
-        lt[1] = this._sx * sx;
-        lt[3] = this._cy * sy;
-        lt[4] = this._sy * sy;
-
-        lt[6] = position[0] - ((px * lt[0]) + (py * lt[3])) // Pivot offset
-            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
-            - ox; // Remove origin to maintain position
-        lt[7] = position[1] - ((px * lt[1]) + (py * lt[4])) // Pivot offset
-            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
-            - oy; // Remove origin to maintain position
     }
 
     getMeshConfig() {
@@ -317,7 +213,7 @@ class Path extends Shape {
         return [
             {
                 ctor: Path,
-                condition: (instance) => instance.path.closePath && (instance._fill.opacity !== 0 || instance.texture),
+                condition: (instance) => (instance._fill.opacity !== 0 || instance.texture),
                 painter: 'MeshPainter',
                 configGetter: 'getMeshConfig'
             }, 

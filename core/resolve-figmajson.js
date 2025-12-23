@@ -67,6 +67,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             type: 'Group',
             x: relativeX,
             y: relativeY,
+            relativeTransform: json.relativeTransform,
             clipsContent: (json.clipsContent || type === 'BOOLEAN_OPERATION')
         });
         if(type === 'BOOLEAN_OPERATION') {
@@ -103,6 +104,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
                     strokeWidth: extractStrokeWidth(json),
                     borderRadius: extractBorderRadius(json),
                     constraints: json.constraints,
+                    relativeTransform: [[1,0,0],[0,1,0]],
                     id: json.id,
                 }
             ]
@@ -111,20 +113,22 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
 
     } else if(type === 'RECTANGLE') {
         type = 'Rectangle';
+        const size = json.size;
         const absoluteRenderBounds = json.absoluteRenderBounds || json.absoluteBoundingBox;
         Object.assign(t, {
             type,
             x: absoluteRenderBounds.x - parentAbsPos.x,
             y: absoluteRenderBounds.y - parentAbsPos.y,
-            width: absoluteRenderBounds.width, 
-            height: absoluteRenderBounds.height,
+            width: size.x, 
+            height: size.y,
             opacity: json.opacity,
             fill: extractColor(json.fills[0]),
             stroke: extractColor(json.strokes[0]),
             rotation: 0, //extractRotation(json.rotation),
             strokeWidth: extractStrokeWidth(json),
             borderRadius: extractBorderRadius(json),
-            constraints: json.constraints
+            constraints: json.constraints,
+            relativeTransform: json.relativeTransform,
         });
         
     } else if(type === 'VECTOR') {
@@ -163,6 +167,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             rotation: json.rotation ? extractRotation(json.rotation) : 0,
             autoWrap: json.style.textAutoResize === "HEIGHT",
             ellipseEnd: json.style.textTruncation === "ENDING",
+            relativeTransform: json.relativeTransform,
         });
     } else if(type === 'ELLIPSE') {
         type = 'ELLIPSE';
@@ -178,7 +183,8 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             rotation: 0, //extractRotation(json.rotation),
             strokeWidth: json.strokeWeight,
             borderRadius: extractBorderRadius(json),
-            constraints: json.constraints
+            constraints: json.constraints,
+            relativeTransform: json.relativeTransform,
         });
     } else {
         console.log(type)

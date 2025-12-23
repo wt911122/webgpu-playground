@@ -20,7 +20,7 @@ import JCanvas, {
 import { vec2, mat3 } from 'gl-matrix';
 import opentype from 'opentype.js';
 
-// import demoFigmaJson from './demo-figmajson.json';
+import demoFigmaJson from './demo-figmajson.json';
 import { iterator } from './resolve-figmajson';
 import figmademojson from './figmademo.json';
 // import figmademojsonBig from './demo-figmajson-big.json';
@@ -31,6 +31,7 @@ import figmademojsonBig2 from './demo-figmajson-big2.json';
 import knowlegetitlejson from './demo-figmajson-knowlegetitle.json'
 import touxiangjson from './figma-touxiang-json.json';
 import figmatoken from './figmatoken.env?raw';
+import simpleFigmajson from './demo-figmajson-simple-json.json'
 
 (async function () {
     // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
@@ -126,22 +127,29 @@ import figmatoken from './figmatoken.env?raw';
     function iteratorCreate(data, group, firstLayer, initx, inity) {
         let shape;
         const type = data.type;
+        const rt = data.relativeTransform;
         if(type === 'Group') {
             shape = Group();
             group.addToStack(shape);
-            shape.rotation = data.rotation;  
+            shape.applyLocalTransform(
+                rt[0][0],rt[1][0],
+                rt[0][1],rt[1][1],
+                rt[0][2],rt[1][2]);
+            shape.decomposeLocalTransform();
+            // shape.rotation = data.rotation;  
             shape.hasMask = data.clipsContent;
             // console.log(data.clipsContent)
         } else if (type === 'Rectangle' || type === 'GroupRectangle' || type === 'FrameRectangle') {
+            const rt = data.relativeTransform;
             shape = Rectangle({ 
-                x: data.x,
-                y: data.y,
+                // x: data.x,
+                // y: data.y,
                 width: data.width,
                 height: data.height,
                 opacity: data.opacity,
                 ...resolveFillColor(data.fill),
                 ...resolveStrokeColor(data.stroke),
-                rotation: data.rotation,
+                // rotation: data.rotation,
                 strokeWidth: {
                     left: data.strokeWidth[0],
                     top: data.strokeWidth[1],
@@ -155,6 +163,11 @@ import figmatoken from './figmatoken.env?raw';
                     bottomRight: data.borderRadius[3],
                 }
             });
+            shape.applyLocalTransform(
+                rt[0][0],rt[1][0],
+                rt[0][1],rt[1][1],
+                rt[0][2],rt[1][2]);
+            shape.decomposeLocalTransform();
             if(type === 'Rectangle') {
 
                 // shape.origin = [0, data.height/2]
@@ -228,8 +241,8 @@ import figmatoken from './figmatoken.env?raw';
         } else if (type === 'Text') {
             shape = MSDFText({
                 content: data.content,
-                x: data.x,
-                y: data.y,
+                // x: data.x,
+                // y: data.y,
                 width: data.width,
                 height: data.height,
                 textAlignHorizontal: data.textAlignHorizontal,
@@ -241,11 +254,16 @@ import figmatoken from './figmatoken.env?raw';
                 autoWrap: data.autoWrap,
                 ellipseEnd: data.ellipseEnd,
             })
+            shape.applyLocalTransform(
+                rt[0][0],rt[1][0],
+                rt[0][1],rt[1][1],
+                rt[0][2],rt[1][2]);
+            shape.decomposeLocalTransform();
             group.addToStack(shape);
         } else if(type === 'ELLIPSE') {
             shape = Ellipse({ 
-                cx: data.x,
-                cy: data.y,
+                // cx: data.x,
+                // cy: data.y,
                 width: data.width,
                 height: data.height,
                 opacity: data.opacity,
@@ -254,6 +272,11 @@ import figmatoken from './figmatoken.env?raw';
                 // rotation: data.rotation,
                 strokeWidth: data.strokeWidth,
             });
+            shape.applyLocalTransform(
+                rt[0][0],rt[1][0],
+                rt[0][1],rt[1][1],
+                rt[0][2],rt[1][2]);
+            shape.decomposeLocalTransform();
             group.addToStack(shape);
         }
         if(shape) {
@@ -265,11 +288,11 @@ import figmatoken from './figmatoken.env?raw';
             data.children.map((child) => {
                 iteratorCreate(child, shape);
             });
-            shape.updateWorldMatrix();
-            shape.origin = vec2.fromValues(shape.width/2, shape.height/2);
-            shape.x = firstLayer ? initx: data.x;
-            shape.y = firstLayer ? inity: data.y;
-            shape.flushTransform();
+            // shape.updateWorldMatrix();
+            // shape.origin = vec2.fromValues(shape.width/2, shape.height/2);
+            // shape.x = firstLayer ? initx: data.x;
+            // shape.y = firstLayer ? inity: data.y;
+            // shape.flushTransform();
         } 
     }
 
@@ -287,6 +310,7 @@ import figmatoken from './figmatoken.env?raw';
         const t = {};
         iterator(docjson, t);
         iteratorCreate(t, stage);
+        stage.updateWorldMatrix();
     }
 
     function generateByFigmaCanvas(canvasjson) {
@@ -342,9 +366,9 @@ import figmatoken from './figmatoken.env?raw';
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
-    loadFromFigma(figmademojsonBig2)
+    loadFromFigma(demoFigmaJson)
 
-    // console.log(stage); 
+    console.log(stage); 
     /* 8const response = await fetch('../assets/Di-3d.png');
     const imageBitmap = await createImageBitmap(await response.blob());
     const imageTexture = createImageTexture(imageBitmap);
@@ -453,17 +477,14 @@ import figmatoken from './figmatoken.env?raw';
     // });
     // stage.addToStack(circle);
 
-    //   const rect2 = Rectangle({
-    //     x: 300,
-    //     y: 500,
-    //     width: 200,
-    //     height: 140,
+    //   const path2 = Path({
+    //     path: 'M150,150L450,150L450,450L150,450Z',
     //     // fill: 'rgb(255, 255, 0)',
-    //     texture: radialGradientTexture,
+    //     // texture: radialGradientTexture,
     //     stroke: 'black',
     //     strokeWidth: 1,
     // });
-    // stage.addToStack(rect2);
+    // stage.addToStack(path2);
 
 
     // circle.addEventListener('mouseenter', onMouseEnter)
@@ -515,23 +536,26 @@ setBlendConstant().
         i++;
     } */
 
-//     const msdftext = MSDFText({
-//         x: 200, y: 50,
-//         fontFamily: 'PingFangSC-Regular',
-//         fontSize: 1/3,
-//         fill: 'black',
-//         content: `11 月 11 日消息，多个活动组织联合宣布，将于 11 月 15 日发起一场名为「特斯拉狙击」
-// （Tesla Takedown）的全球协调行动日，呼吁世界各地参与者共同抗议特斯拉首席执行官埃隆・马斯克（Elon Musk）新近获批的 2025 年绩效奖励计划。
-// 今年早些时候，部分反特斯拉人士曾对多家特斯拉门店实施涂鸦、燃烧弹袭击甚至枪击，以表达对马斯克的不满。
-// 此次抗议行动的直接导火索，是特斯拉股东近期批准的马斯克 2025 年绩效奖励计划——这一里程碑式的薪酬方案若全部兑现，
-// 将使马斯克成为全球首位资产达万亿美元（$1 trillion）的个人。
-// 组织方表示，此次运动是一场非暴力抗议，旨在反对他们所认为的「过度集中于个人手中的企业权力与巨额财富」。
-// 据「特斯拉狙击」组织者介绍，11 月 15 日的抗议行动恰逢其首次大规模周末行动的九个月纪念日。
-// 在一份公开声明中，该团体号召支持者以「拒绝万亿富豪」
-// （#NoTrillionaires）为口号，「在你所在的社区发起或加入一场抗议行动」，并将此次活动定位为对亿万富翁深度介入政治与科技领域的明确抵制。（来源：新浪财经）`
-//     })
+    const msdftext = MSDFText({
+        x: 200, y: 50,
+        width: 300,
+        autoWrap: true,
+        fontFamily: 'PingFangSC-Regular',
+        fontSize: 12,
+        lineHeight: 20,
+        fill: 'black',
+        content: `11 月 11 日消息，多个活动组织联合宣布，将于 11 月 15 日发起一场名为「特斯拉狙击」
+（Tesla Takedown）的全球协调行动日，呼吁世界各地参与者共同抗议特斯拉首席执行官埃隆・马斯克（Elon Musk）新近获批的 2025 年绩效奖励计划。
+今年早些时候，部分反特斯拉人士曾对多家特斯拉门店实施涂鸦、燃烧弹袭击甚至枪击，以表达对马斯克的不满。
+此次抗议行动的直接导火索，是特斯拉股东近期批准的马斯克 2025 年绩效奖励计划——这一里程碑式的薪酬方案若全部兑现，
+将使马斯克成为全球首位资产达万亿美元（$1 trillion）的个人。
+组织方表示，此次运动是一场非暴力抗议，旨在反对他们所认为的「过度集中于个人手中的企业权力与巨额财富」。
+据「特斯拉狙击」组织者介绍，11 月 15 日的抗议行动恰逢其首次大规模周末行动的九个月纪念日。
+在一份公开声明中，该团体号召支持者以「拒绝万亿富豪」
+（#NoTrillionaires）为口号，「在你所在的社区发起或加入一场抗议行动」，并将此次活动定位为对亿万富翁深度介入政治与科技领域的明确抵制。（来源：新浪财经）`
+    })
 
-//     stage.addToStack(msdftext);
+    stage.addToStack(msdftext);
 
     // const ellipse2 = Ellipse({
     //     cx: 500,
@@ -552,6 +576,45 @@ setBlendConstant().
     // group3.addToStack(group2);
     // stage.addToStack(group2);
 
+    const group2 = Group();
+    const rect7 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
+        fill: 'rgb(255, 255, 0)',
+        stroke: 'black',
+        rotation: 0,
+        strokeWidth: 1,
+    });
+    const rect5 = Ellipse({
+        cx: 0,
+        cy: 0,
+        width: 200,
+        height: 140,
+        fill: 'rgb(255, 255, 0)',
+        stroke: 'black',
+        rotation: Math.PI/6,
+        strokeWidth: 1,
+    });
+    const rect6 = Path({
+        path: `M 10,30
+           A 20,20 0,0,1 50,30
+           A 20,20 0,0,1 90,30
+           Q 90,60 50,90
+           Q 10,60 10,30 
+           M 10 80 
+           C 40 10, 65 10, 95 80 
+           S 150 150, 180 80`,
+        // fill: 'rgb(0, 255, 255)',
+        stroke: 'black',
+        strokeWidth: 2,
+    })
+
+    group2.addToStack(rect7);
+    group2.addToStack(rect5);
+    group2.addToStack(rect6);
+    stage.addToStack(group2);
     /* const rect5 = Rectangle({
         x: 0,
         y: 0,

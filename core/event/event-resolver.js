@@ -313,7 +313,7 @@ function EventResolver() {
                     vec2.subtract(vec, vec, targetPos);
                     vec2.add(vec, targetPosition, vec)
                     target.position = vec;
-                    target.flushTransform();
+                    target.updateLocalTransform();
 
                     target.updateWorldMatrix(target.parent.matrix);
                     target.markMaterialDrity();

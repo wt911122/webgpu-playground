@@ -430,8 +430,11 @@ fn fs(fragData: VertexOutput) -> @location(0) vec4f {
         alpha = a2 * b2 - a1 * b1;
         alpha *= clamp(vArc.z + 0.5, 0.0, 1.0);
     }
-
-    return strokeColor * alpha;
+    if(alpha < 0.5) {
+        discard;
+    }
+    strokeColor *= alpha;
+    return strokeColor;
 }
 
 

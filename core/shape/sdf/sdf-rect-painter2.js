@@ -133,6 +133,7 @@ function SDFRectPainter() {
         });
         function collecInstanceConfig(instance, config) {
             if(!config.enable) {
+                config.addBindGroup('textureBindGroup', defaultTexture.bindGroup)
                 return;
             }
             const { 

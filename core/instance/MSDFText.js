@@ -16,65 +16,6 @@ class MSDFText extends Shape {
     textWidth = 0;
     textHeight = 0;
     
-    w = 0;
-    h = 0;
-
-
-    get x() {
-        return this._position[0];
-    }
-
-    set x(value){
-        this._position[0] = value;
-    }
-
-    get y() {
-        return this._position[1];
-    }
-
-    set y(value){
-        this._position[1] = value;
-    }
-
-    get rotation() {
-        return this._rotation;
-    }
-
-    set rotation(value) {
-        if (this._rotation !== value) {
-            this._rotation = value;
-        }
-    }
-    get angle() {
-        return this.rotation * RAD_TO_DEG;
-    }
-
-    set angle(value) {
-        this.rotation = value * DEG_TO_RAD;
-    }
-
-    set width(val) {
-        this.w = val;
-    }
-
-    set height(val) {
-        this.h = val;
-    }
-    get width() {
-        return this.w;
-    }
-
-    get height() {
-        return this.h;
-    }
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
-    }
-    
 
     constructor(configs) {
         super(configs);
@@ -84,14 +25,15 @@ class MSDFText extends Shape {
         this._fontSize = fontSize || 1/256;
         this.x = x ?? 0;
         this.y = y ?? 0;
-        this.definedWidth = width ?? 0;
-        this.definedHeight = height ?? 0;
+        this.definedWidth = width;
+        this.definedHeight = height;
         this._textAlignHorizontal = textAlignHorizontal ?? 'LEFT';
         this._textAlignVertical = textAlignVertical ?? 'CENTER';
         this._lineHeight = lineHeight;
         this._autoWrap = autoWrap ?? false;
         this._ellipseEnd = ellipseEnd ?? false;
-        this.flushTransform();
+        this.updateLocalTransform();
+        // this.flushTransform();
         // mat3.translate(this._localTransform, this._localTransform, [x, y]);
     }
 
@@ -119,8 +61,14 @@ class MSDFText extends Shape {
     }
 
     measureWidth() {
-        this.w = Math.max(this.definedWidth || 0, this.textWidth);
-        this.h = Math.max(this.definedHeight || 0, this.textHeight);
+        if(this._stopPivotResponse) {
+            this.w = Math.max(this.definedWidth || 0, this.textWidth);
+            this.h = Math.max(0, this.definedHeight ?? this.textHeight);
+        } else {
+            this.width = Math.max(this.definedWidth || 0, this.textWidth);
+            this.height = Math.max(0, this.definedHeight ?? this.textHeight);
+        }
+       
     }
 
     updateBoundingBox() {
@@ -130,7 +78,7 @@ class MSDFText extends Shape {
         vec2.set(lc.RB, w, h);
         vec2.set(lc.LB, 0, h);
         vec2.set(lc.RT, w, 0);
-        vec2.set(this._origin, w/2, h/2);
+        // vec2.set(this._origin, w/2, h/2);
 
         const { LT, RB, LB, RT } = this._boundingbox;
         vec2.transformMat3(LT, lc.LT, this._currentMat)
@@ -166,55 +114,96 @@ class MSDFText extends Shape {
     }
 
     rotate(context) {
-        const { cp, vecf, vect, rotation } = context;
-        const x = this.width/2;
-        const y = this.height/2;
+        const { cp, vecf, vect, rotation, localMat } = context;
+        const pivot = this._pivot;
         
-        const v1 = [vecf[0] - x, vecf[1] - y];
-        const v2 = [vect[0] - x, vect[1] - y];
+        const v1 = [vecf[0] - pivot[0], vecf[1] - pivot[1]];
+        const v2 = [vect[0] - pivot[0], vect[1] - pivot[1]];
         const angleInRadians = calculateAngle(v1, v2);
-        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        
         this.rotation = rotation + angleInRadians;
-        this.flushTransform(true);
+        this.updateLocalTransform();
+        // vec2.set(this._origin, 0, 0);
+        // this.updateLocalTransform();
+
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
     }
 
-    _updateSkew() {
-        const rotation = this._rotation;
-        const skew = this._skew;
-
-        this._cx = Math.cos(rotation + skew[1]);
-        this._sx = Math.sin(rotation + skew[1]);
-        this._cy = -Math.sin(rotation - skew[0]); // cos, added PI/2
-        this._sy = Math.cos(rotation - skew[0]); // sin, added PI/2
+    editBoundaryStart(context) {
+        const mat = this._localTransform;
+        Object.assign(context, {
+            scale: vec2.clone(this._scale),
+            bounding: vec2.fromValues(this.width, this.height),
+            position: vec2.clone(this.position),
+            localMat: mat3.clone(mat),
+            localUnitMat: mat3.fromValues(mat[0], mat[1], mat[2], mat[3], mat[4], mat[5], 0,0,1)
+        });
+        this._stopPivotResponse = true;
     }
-    flushTransform(updateFactor) {
-        if(updateFactor) {
-            this._updateSkew();
+
+    editBoundary(context) {
+        const { cp, vecDelta, vecDeltaP, bounding, scale, position, localMat, localUnitMat } = context;
+        let factor;
+        if(cp === 'lt') {
+            factor = [-1, -1]
+            vec2.multiply(vecDelta, vecDelta, [-1,-1])
         }
-        
-        const lt = this._localTransform;
-        const position = this._position;
-        const origin = this._origin
-        
-        const ox = -origin[0];
-        const oy = -origin[1];
+        if(cp === 'rt') {
+            factor = [0, -1]
+            vec2.multiply(vecDelta, vecDelta, [1,-1])
+        }
+        if(cp === 'rb') {
+            factor = [0, 0]
+        }
+        if(cp === 'lb') {
+            factor = [-1, 0]
+            vec2.multiply(vecDelta, vecDelta, [-1,1])
+        }
 
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx;
-        lt[1] = this._sx;
-        lt[3] = this._cy;
-        lt[4] = this._sy;
+        const width = bounding[0] + vecDelta[0];
+        const height = bounding[1] + vecDelta[1];
+        // console.log(width, height)
+        this.definedWidth = width;
+        this.definedHeight = height;
+        // console.log(vecDelta)
+        vec2.multiply(vecDelta, vecDelta, factor)
+        vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
+        vec2.add(this.position, position, this._tempVec);
 
-        lt[6] = position[0] 
-            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
-            - ox; // Remove origin to maintain position
-        lt[7] = position[1]
-            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
-            - oy; // Remove origin to maintain position
-
+        this.updateLocalTransform();
+        this.updateWorldMatrix(this.parent.matrix)
+        this.markMaterialDrity();
+        this.markGeoDirty()
     }
+
+    editBoundaryEnd(context) {
+        // 平移 pivot
+        this._stopPivotResponse = false;
+        const newPivot = vec2.fromValues(this.w/2, this.h/2);
+        const _localTransform = this._localTransform;
+        const a = _localTransform[0];
+        const b = _localTransform[1];
+        const c = _localTransform[3];
+        const d = _localTransform[4];
+        const tx = _localTransform[6];
+        const ty = _localTransform[7];
+        const currentPivot = this._pivot;
+        const origin = this._origin;
+        const position = this._position;
+        const cx = a * currentPivot[0] + c * currentPivot[1] - currentPivot[0];
+        const cy = b * currentPivot[0] + d * currentPivot[1] - currentPivot[1];
+        const ncx = a * newPivot[0] + c * newPivot[1] - newPivot[0];
+        const ncy = b * newPivot[0] + d * newPivot[1] - newPivot[1];
+        this._position[0] = position[0] - cx + ncx;
+        this._position[1] = position[1] - cy + ncy;
+        this.pivot = newPivot;
+        this.updateLocalTransform();
+        this.updateWorldMatrix(this.parent.matrix);
+        this.markMaterialDrity();
+    }
+
 
     getConfig() {
         const { 

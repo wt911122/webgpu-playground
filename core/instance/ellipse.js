@@ -17,74 +17,29 @@ class Ellipse extends Shape {
     innerRadius = 0;
     _strokeWidth = 0;
 
-    set width(val) {
-        this.w = val;
+    set cx(value) {
+        this.x = value - this.w/2;
+        this.updateLocalTransform();
     }
 
-    set height(val) {
-        this.h = val;
-    }
-
-    get width() {
-        return this.w;
-    }
-
-    get height() {
-        return this.h;
-    }
-    get x() {
-        return this._position[0];
-    }
-
-    set x(value){
-        this._position[0] = value;
-    }
-
-    get y() {
-        return this._position[1];
-    }
-
-    set y(value){
-        this._position[1] = value;
-    }
-
-
-    get rotation() {
-        return this._rotation;
-    }
-
-    set rotation(value) {
-        if (this._rotation !== value) {
-            this._rotation = value;
-        }
-    }
-    get angle() {
-        return this.rotation * RAD_TO_DEG;
-    }
-
-    set angle(value) {
-        this.rotation = value * DEG_TO_RAD;
+    set cy(value) {
+        this.y = value - this.h/2;
+        this.updateLocalTransform();
     }
     
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
-    }
     constructor(configs) {
         super(configs);
         const { cx, cy, width, height, r, startingAngle, endingAngle, innerRadius } = configs;
-        this.w = width || r*2;
-        this.h = height || r*2;
-        this.x = cx ?? 0;
-        this.y = cy ?? 0;
+        this.width = width || r*2;
+        this.height = height || r*2;
+        this.cx = cx ?? 0;
+        this.cy = cy ?? 0;
         this.startingAngle = startingAngle ?? 0;
         this.endingAngle = endingAngle ?? Math.PI*2;
         this.innerRadius = innerRadius ?? 0;    
         this._strokeWidth = configs.strokeWidth ?? 0;
-        this.flushTransform();
+        this.updateLocalTransform()
+        // this.flushTransform();
     }
 
 
@@ -96,12 +51,19 @@ class Ellipse extends Shape {
         // vec2.set(lc.LB, x-w/2, y+h/2);
         // vec2.set(lc.RT, x+w/2, y-h/2);
 
-        const { w, h } = this;
+        /* const { w, h } = this;
         const lc = this._localBoundingbox;
         vec2.set(lc.LT, -w/2, -h/2);
         vec2.set(lc.RB, +w/2, +h/2);
         vec2.set(lc.LB, -w/2, +h/2);
-        vec2.set(lc.RT, +w/2, -h/2);
+        vec2.set(lc.RT, +w/2, -h/2);*/
+
+        const { x, y, w, h } = this;
+        const lc = this._localBoundingbox;
+        vec2.set(lc.LT, 0, 0);
+        vec2.set(lc.RB, w, h);
+        vec2.set(lc.LB, 0, h);
+        vec2.set(lc.RT, w, 0);
 
         const { LT, RB, LB, RT } = this._boundingbox;
         vec2.transformMat3(LT, lc.LT, this._currentMat)
@@ -126,8 +88,8 @@ class Ellipse extends Shape {
 
         // normalize the coords to an ellipse with center 0,0
         
-        let normx = ((this._tempP[0]) / halfWidth);
-        let normy = ((this._tempP[1]) / halfHeight);
+        let normx = ((this._tempP[0] - halfWidth) / halfWidth);
+        let normy = ((this._tempP[1] - halfHeight) / halfHeight);
 
         normx *= normx;
         normy *= normy;
@@ -147,37 +109,65 @@ class Ellipse extends Shape {
     }
 
     editBoundary(context) {
-        const { cp, vecDelta, bounding, scale, position, localMat, localUnitMat } = context;
+        const { cp, vecDelta, vecDeltaP, bounding, scale, position, localMat, localUnitMat } = context;
         let factor;
         if(cp === 'lt') {
-            factor = [-0.5, -0.5]
+            factor = [-1, -1]
             vec2.multiply(vecDelta, vecDelta, [-1,-1])
         }
         if(cp === 'rt') {
-            factor = [0.5, -0.5]
+            factor = [0, -1]
             vec2.multiply(vecDelta, vecDelta, [1,-1])
         }
         if(cp === 'rb') {
-            factor = [0.5, 0.5]
+            factor = [0, 0]
         }
         if(cp === 'lb') {
-            factor = [-0.5, 0.5]
+            factor = [-1, 0]
             vec2.multiply(vecDelta, vecDelta, [-1,1])
         }
 
-        this.width = bounding[0] + vecDelta[0];
-        this.height = bounding[1] + vecDelta[1];
-
+        const width = bounding[0] + vecDelta[0];
+        const height = bounding[1] + vecDelta[1];
+        // console.log(width, height)
+        this.w = width;
+        this.h = height;
+        // console.log(vecDelta)
         vec2.multiply(vecDelta, vecDelta, factor)
         vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
         vec2.add(this.position, position, this._tempVec);
 
-        this.flushTransform();
+        this.updateLocalTransform();
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
         if(this._strokeLineDash.length > 1) {
             this.markGeoDirty()
         }
+    }
+
+    editBoundaryEnd(context) {
+        // 平移 pivot
+        const newPivot = vec2.fromValues(this.w/2, this.h/2);
+        const _localTransform = this._localTransform;
+        const a = _localTransform[0];
+        const b = _localTransform[1];
+        const c = _localTransform[3];
+        const d = _localTransform[4];
+        const tx = _localTransform[6];
+        const ty = _localTransform[7];
+        const currentPivot = this._pivot;
+        const origin = this._origin;
+        const position = this._position;
+        const cx = a * currentPivot[0] + c * currentPivot[1] - currentPivot[0];
+        const cy = b * currentPivot[0] + d * currentPivot[1] - currentPivot[1];
+        const ncx = a * newPivot[0] + c * newPivot[1] - newPivot[0];
+        const ncy = b * newPivot[0] + d * newPivot[1] - newPivot[1];
+        this._position[0] = position[0] - cx + ncx;
+        this._position[1] = position[1] - cy + ncy;
+        this.pivot = newPivot;
+        this.updateLocalTransform();
+        this.updateWorldMatrix(this.parent.matrix);
+        this.markMaterialDrity();
     }
 
     rotateStart(context) {
@@ -186,44 +176,22 @@ class Ellipse extends Shape {
         });
     }
 
-    rotate(context) {
-        const { cp, vecf, vect, rotation } = context;
-
-        const angleInRadians = calculateAngle(vecf, vect);
-        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+     rotate(context) {
+        const { cp, vecf, vect, rotation, localMat } = context;
+        const pivot = this._pivot;
+        
+        const v1 = [vecf[0] - pivot[0], vecf[1] - pivot[1]];
+        const v2 = [vect[0] - pivot[0], vect[1] - pivot[1]];
+        const angleInRadians = calculateAngle(v1, v2);
+        // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        
         this.rotation = rotation + angleInRadians;
-        this.flushTransform(true);
+        this.updateLocalTransform();
+        // vec2.set(this._origin, 0, 0);
+        // this.updateLocalTransform();
+
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
-    }
-
-    _updateSkew() {
-        const rotation = this._rotation;
-        const skew = this._skew;
-
-        this._cx = Math.cos(rotation + skew[1]);
-        this._sx = Math.sin(rotation + skew[1]);
-        this._cy = -Math.sin(rotation - skew[0]); // cos, added PI/2
-        this._sy = Math.cos(rotation - skew[0]); // sin, added PI/2
-    }
-
-    flushTransform(updateFactor) {
-        if(updateFactor) {
-            this._updateSkew();
-        }
-        
-        const lt = this._localTransform;
-        const position = this._position;
-
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx;
-        lt[1] = this._sx;
-        lt[3] = this._cy;
-        lt[4] = this._sy;
-
-        lt[6] = position[0];
-        lt[7] = position[1];
-
     }
 
     getShapeConfig() {
@@ -234,7 +202,7 @@ class Ellipse extends Shape {
             _shadowOffsetX, _shadowOffsetY, _shadowBlur
         } = this;
         return {
-            x:0, y:0,
+            x:w/2, y:h/2,
             w, h, startingAngle, endingAngle, innerRadius,
             strokeWidth: { 
                 left: _strokeWidth,

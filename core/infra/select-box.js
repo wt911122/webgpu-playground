@@ -29,30 +29,39 @@ function SelectBox() {
             cpB,
             cpC,
             cpD,
-            cpRotate
+            cpRotate,
+            originPoint,
+            pivotPoint,
         } = _parts_;
 
         // console.log(`M${LT[0]} ${LT[1]}L${RT[0]} ${RT[1]}L${RB[0]} ${RB[1]}L${LB[0]} ${LB[1]}Z`)
         boundary.path = `M${LT[0]} ${LT[1]}L${RT[0]} ${RT[1]}L${RB[0]} ${RB[1]}L${LB[0]} ${LB[1]}Z`,
-        // cpA.x = LT[0]; cpA.y = LT[1];
-        // cpA.flushTransform();
-        // cpB.x = RT[0]; cpB.y = RT[1];
-        // cpB.flushTransform();
-        // cpC.x = RB[0]; cpC.y = RB[1];
-        // cpC.flushTransform();
-        // cpD.x = LB[0]; cpD.y = LB[1];
-        // cpD.flushTransform();
+        cpA.cx = LT[0]; cpA.cy = LT[1];
+        cpB.cx = RT[0]; cpB.cy = RT[1];
+        cpC.cx = RB[0]; cpC.cy = RB[1];
+        cpD.cx = LB[0]; cpD.cy = LB[1];
+        const originvec = vec2.create();
+        vec2.transformMat3(originvec, shape._origin, shape._currentMat) 
+        originPoint.cx = originvec[0];
+        originPoint.cy = originvec[1];
+        originPoint.visible = true;
+        
+        const pivotvec = vec2.create();
+        vec2.transformMat3(pivotvec, shape._pivot, shape._currentMat) 
+        pivotPoint.cx = pivotvec[0];
+        pivotPoint.cy = pivotvec[1];
+        pivotPoint.visible = true;
         // console.log(boundary.path)
         
-        // cpRotate.x = LT[0] + (RT[0] - LT[0])/2;
-        // cpRotate.y = LT[1] + (RT[1] - LT[1])/2;
+        cpRotate.cx = LT[0] + (RT[0] - LT[0])/2;
+        cpRotate.cy = LT[1] + (RT[1] - LT[1])/2;
         // cpRotate.flushTransform();
         boundary.visible = true;
-        // cpA.visible = true;
-        // cpB.visible = true;
-        // cpC.visible = true;
-        // cpD.visible = true;
-        // cpRotate.visible = true;
+        cpA.visible = true;
+        cpB.visible = true;
+        cpC.visible = true;
+        cpD.visible = true;
+        cpRotate.visible = true;
         root.updateWorldMatrix();
     }
 
@@ -64,6 +73,8 @@ function SelectBox() {
             cpC,
             cpD,
             cpRotate,
+            originPoint,
+            pivotPoint,
         } = _parts_;
         boundary.visible = false;
         cpA.visible = false;
@@ -71,6 +82,8 @@ function SelectBox() {
         cpC.visible = false;
         cpD.visible = false;
         cpRotate.visible = false;
+        originPoint.visible = false;
+        pivotPoint.visible = false;
         if(!temporary) {
             target.shape = null;
         }   
@@ -209,12 +222,14 @@ function SelectBox() {
         const Path = jc.getShapeCtor('Path');
         const Ellipse = jc.getShapeCtor('Ellipse');
         const Group = jc.getShapeCtor('Group');
-        const root = Group();
+        const root = Group({
+            ignoreHitTest: true,
+        });
         const visible = false;
         const boundary = Path({
             path: '',
             stroke: 'blue',
-            strokeWidth: 0.5,
+            strokeWidth: 2,
             visible,
         })
         boundary.checkHit = () => false;
@@ -252,13 +267,25 @@ function SelectBox() {
             visible
         });
         const cpRotate = Ellipse({
-            cx: c + 15, cy: b,
+            cx: 0, cy: 0,
             width: 12, height: 12,
             fill: 'yellow',
             stroke: 'blue',
             strokeWidth: 1,
             visible
         })
+        const originPoint = Ellipse({
+            cx: 0, cy: 0,
+            width: 6, height: 6,
+            fill: 'red',
+            visible
+        });
+        const pivotPoint = Ellipse({
+            cx: 0, cy: 0,
+            width: 6, height: 6,
+            fill: 'purple',
+            visible
+        });
         Object.assign(_parts_, {
             root,
             boundary,
@@ -266,14 +293,18 @@ function SelectBox() {
             cpB,
             cpC,
             cpD,
-            cpRotate
+            cpRotate,
+            originPoint,
+            pivotPoint
         });
         root.addToStack(boundary);
-        // root.addToStack(cpA);
-        // root.addToStack(cpB);
-        // root.addToStack(cpC);
-        // root.addToStack(cpD);
-        // root.addToStack(cpRotate);
+        root.addToStack(cpA);
+        root.addToStack(cpB);
+        root.addToStack(cpC);
+        root.addToStack(cpD);
+        root.addToStack(cpRotate);
+        root.addToStack(originPoint);
+        root.addToStack(pivotPoint);
         jc.stage.addToToolStack(root);
 
         jc.stage.addEventListener('click', e => {

@@ -5,94 +5,12 @@ import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric
 class Group extends Layer {
     renderable = false;
     lock = false;
-
-    _position   = vec2.fromValues(0,0);
-    _scale      = vec2.fromValues(1,1);
-    _pivot      = vec2.fromValues(0,0);
-    _origin     = vec2.fromValues(0,0);
-    _skew       = vec2.fromValues(0,0);
-    _rotation = 0;
-    _cx = 1;
-    _sx = 0;
-    _cy = 0;
-    _sy = 1;
-
-    _tempVec = vec2.create();
-
     _mask = null;
 
-    get x() {
-        return this._position[0];
-    }
+    set width(val) {}
 
-    set x(value){
-        this._position[0] = value;
-    }
+    set height(val) {}
 
-    get y() {
-        return this._position[1];
-    }
-
-    set y(value){
-        this._position[1] = value;
-    }
-
-    get rotation() {
-        return this._rotation;
-    }
-
-    set rotation(value) {
-        if (this._rotation !== value) {
-            this._rotation = value;
-        }
-    }
-    get angle() {
-        return this.rotation * RAD_TO_DEG;
-    }
-
-    set angle(value) {
-        this.rotation = value * DEG_TO_RAD;
-    }
-
-    get pivot() {
-        return this._pivot;
-    }
-
-    set pivot(value){
-        vec2.copy(this._pivot, value);
-    }
-
-    get skew() {
-        return this._skew;
-    }
-
-    set skew(value){
-        vec2.copy(this._skew, value);
-    }
-
-    get scale() {
-        return this._scale;
-    }
-
-    set scale(value){
-        vec2.copy(this._scale, value);
-    }
-
-    get origin() {
-        return this._origin;
-    }
-
-    set origin(value){
-        vec2.copy(this._origin, value);
-    }
-
-    get position() {
-        return this._position;
-    }
-
-    set position(value){
-        vec2.copy(this._position, value);
-    }
 
     get width()
     {
@@ -110,6 +28,8 @@ class Group extends Layer {
         return this._mask;
     }
 
+    ignoreHitTest = false;
+
     // set width(value)
     // {
     //     const localWidth = this.getLocalBounds().width;
@@ -121,6 +41,7 @@ class Group extends Layer {
         super(configs);
         // const { x = 0, y = 0, lock } = configs;
         this.lock = !!configs.lock;
+        this.ignoreHitTest = configs.ignoreHitTest;
     }
 
     updateBoundingBox() {
@@ -159,6 +80,7 @@ class Group extends Layer {
         vec2.transformMat3(LB, lc.LB, this._currentMat);
         vec2.transformMat3(RT, lc.RT, this._currentMat);
 
+        vec2.set(this._pivot, this.width/2 + minX, this.height/2 + minY) 
         const indexRBush = this.jcanvas.indexRBush;
         indexRBush.refresh(this);
     }
@@ -168,6 +90,10 @@ class Group extends Layer {
         //     return instance.checkHit(mouseVec);
         // });
         // return !!q;
+        if(this.ignoreHitTest) {
+            return false;
+        }
+        return true;
     }
 
     editBoundaryStart(context) {
@@ -208,7 +134,7 @@ class Group extends Layer {
         vec2.transformMat3(this._tempVec, vecDelta, localUnitMat);
         vec2.add(this.position, position, this._tempVec);
 
-        this.flushTransform();
+        this.updateLocalTransform();
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
     }
@@ -222,61 +148,21 @@ class Group extends Layer {
         });
     }
     rotate(context) {
-        const { cp, vecf, vect, rotation } = context;
-        const pivot = this.origin;
+        const { cp, vecf, vect, rotation, localMat } = context;
+        const pivot = this._pivot;
         
         const v1 = [vecf[0] - pivot[0], vecf[1] - pivot[1]];
         const v2 = [vect[0] - pivot[0], vect[1] - pivot[1]];
         const angleInRadians = calculateAngle(v1, v2);
-        console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        // console.log(rotation*RAD_TO_DEG, angleInRadians*RAD_TO_DEG)
+        
         this.rotation = rotation + angleInRadians;
-        this.flushTransform(true);
+        this.updateLocalTransform();
+        // vec2.set(this._origin, 0, 0);
+        // this.updateLocalTransform();
+
         this.updateWorldMatrix(this.parent.matrix)
         this.markMaterialDrity();
-    }
-
-    _updateSkew() {
-        const rotation = this._rotation;
-        const skew = this._skew;
-
-        this._cx = Math.cos(rotation + skew[1]);
-        this._sx = Math.sin(rotation + skew[1]);
-        this._cy = -Math.sin(rotation - skew[0]); // cos, added PI/2
-        this._sy = Math.cos(rotation - skew[0]); // sin, added PI/2
-    }
-
-    flushTransform(updateFactor) {
-        if(updateFactor) {
-            this._updateSkew();
-        }
-        
-        const lt = this._localTransform;
-        const scale = this._scale;
-        const pivot = this._pivot;
-        const origin = this._origin;
-        const position = this._position;
-
-        const sx = scale[0];
-        const sy = scale[1];
-
-        const px = pivot[0];
-        const py = pivot[1];
-
-        const ox = -origin[0];
-        const oy = -origin[1];
-
-        // get the matrix values of the container based on its this properties..
-        lt[0] = this._cx * sx;
-        lt[1] = this._sx * sx;
-        lt[3] = this._cy * sy;
-        lt[4] = this._sy * sy;
-
-        lt[6] = position[0] - ((px * lt[0]) + (py * lt[3])) // Pivot offset
-            + ((ox * lt[0]) + (oy * lt[3])) // Origin offset for rotation and scaling
-            - ox; // Remove origin to maintain position
-        lt[7] = position[1] - ((px * lt[1]) + (py * lt[4])) // Pivot offset
-            + ((ox * lt[1]) + (oy * lt[4])) // Origin offset for rotation and scaling
-            - oy; // Remove origin to maintain position
     }
 
     setMask(shape) {

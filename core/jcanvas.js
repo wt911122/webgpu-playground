@@ -363,7 +363,7 @@ class JCanvas {
                 }
             }
         );
-        console.log(maxLayer, maskIndex)
+        // console.log(maxLayer, maskIndex)
         delayedMesh.forEach(instance => {
             this.meshDirtyInstance(instance);
         });
@@ -405,7 +405,7 @@ class JCanvas {
         // let maskLayer = -1;
 
         passEncoder.setStencilReference(0);
-        this._painterRegistry.iterate((painter) => {
+        _painterRegistry.iterateGeneral((painter) => {
             painter.render(encoder, passEncoder)
         })
         this._stage.traverseOnlyLayer(
@@ -448,7 +448,7 @@ class JCanvas {
 
             })
         
-        this._painterRegistry.iterateStatic((painter) => {
+        _painterRegistry.iterateStatic((painter) => {
             painter.render(encoder, passEncoder)
         })
 
