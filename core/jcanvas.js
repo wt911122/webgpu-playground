@@ -468,6 +468,13 @@ class JCanvas {
 
         painter.collect(instance, layerTransformer, renderCounter)
     }
+
+    clear() {
+        this.stage.clear();
+        this._painterRegistry.iterateGeneral(painter => {
+            painter.clear();
+        })
+    }
 }
 
 export default JCanvas;

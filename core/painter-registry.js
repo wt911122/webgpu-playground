@@ -114,12 +114,14 @@ class ShaperPainter {
             });
             this.configsWeakMap.set(instance, instanceConfig);
             this.configs.push(instanceConfig);
-        } else {
-           instanceConfig.updateConfig();
-        }
-        if(instance._geodirty) {
             this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+        } else {
+            instanceConfig.updateConfig();
+            if(instance._geodirty) {
+                this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+            }
         }
+       
         return true;
     }
 
@@ -135,12 +137,14 @@ class ShaperPainter {
             instanceConfig = new InstanceConfig(instance, configMeta);
             this.configsWeakMap.set(instance, instanceConfig);
             this.configs.push(instanceConfig);
+            this._collectInstanceConfig(instance, instanceConfig, jcanvas);
         } else {
            instanceConfig.updateConfig();
+           if(instance._geodirty) {
+                this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+            }
         }
-        if(instance._geodirty) {
-            this._collectInstanceConfig(instance, instanceConfig, jcanvas);
-        }
+        
         // console.log(config)
         // this._configLength = config.length;
         return true;
@@ -186,6 +190,11 @@ class ShaperPainter {
 
     renderMaskEnd(mask, encoder, passEncoder) {
         this._renderMaskEndFn(mask, encoder, passEncoder);
+    }
+
+    clear() {
+        this.configs.length = 0;
+        this.configsWeakMap = new WeakMap();
     }
 
 }
