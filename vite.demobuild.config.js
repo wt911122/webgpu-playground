@@ -3,6 +3,7 @@ import { createRequire } from 'module';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
+  base: '/docs/', // 设置路径前缀
   plugins: [
     viteStaticCopy({
       targets: [
