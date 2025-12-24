@@ -22,11 +22,52 @@
                 background-color: #fff;
                 padding: 2px 6px;
             }
+            #pagebar {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                width: 200px;
+                height: 300px;
+                overflow: scroll;
+                background-color: #fff;
+                padding: 2px 6px;
+            }
+            #pagebar ul > li {
+                cursor: pointer;
+                user-select: none;
+            }
+            #pagebar ul > li:hover {
+                background-color: aqua;
+            }
+            #pagebarmini {
+                cursor: pointer;
+                display: none;
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                background-color: #fff;
+                padding: 2px 6px;
+            }
+            #pagebartoggle {
+                cursor: pointer;
+            }
         </style>
     </head>
     <body>
         <div id="app">
             <!-- <canvas id="c" width="800" height="600"></canvas> -->
+        </div>
+        <div id="pagebar">
+            <div id="pagebartoggle">折叠</div>
+            <div>
+               预置设计稿（双击进入）
+            </div>
+            <ul id="designerlist">
+                
+            </ul>
+        </div>
+        <div id="pagebarmini">
+            展开
         </div>
         <div id="toolbar">
             <label for="figmaURL">

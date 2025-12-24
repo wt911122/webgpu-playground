@@ -30,7 +30,7 @@ import arrowFigmajson from './arrow-figmajson.json';
 import figmademojsonBig2 from './demo-figmajson-big2.json';
 import knowlegetitlejson from './demo-figmajson-knowlegetitle.json'
 import touxiangjson from './figma-touxiang-json.json';
-import figmatoken from './figmatoken.env?raw';
+// import figmatoken from './figmatoken.env?raw';
 import simpleFigmajson from './demo-figmajson-simple-json.json'
 import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
 
@@ -349,7 +349,7 @@ import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
     // const filekeyinput = document.getElementById('filekey');
     const figmaURL = document.getElementById('figmaURL');
     const FIGMA_TOKENinput = document.getElementById('FIGMA_TOKEN');
-    FIGMA_TOKENinput.value = figmatoken;
+    FIGMA_TOKENinput.value = '';//figmatoken;
     showFigmaButton.addEventListener('click', () => {
         const url = new URL(figmaURL.value);
         const res = /\/design\/(.+)\//.exec(url.pathname);
@@ -367,7 +367,35 @@ import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
-    loadFromFigma(demoFigmaJsonBig222)
+
+    const list = [
+        { text: '设计稿1', value: figmademojson },
+        { text: '设计稿2', value: figmademojsonBig2 },
+        { text: '设计稿3', value: simpleFigmajson },
+        { text: '设计稿4', value: demoFigmaJsonBig222 }
+    ]
+    var container = document.getElementById('designerlist');
+    list.forEach(item => {
+        const li = document.createElement('li')
+        li.innerHTML = item.text;
+        li.addEventListener('dblclick', e => {
+            jc.clear();
+            loadFromFigma(item.value)
+        })
+        container.append(li);
+    });
+    var pagebar = document.getElementById('pagebar');
+    var pagebartoggle = document.getElementById('pagebartoggle');
+    var pagebarmini = document.getElementById('pagebarmini');
+    pagebartoggle.addEventListener('click', () => {
+        pagebar.style.display = 'none';
+        pagebarmini.style.display = 'block'
+    })
+    pagebarmini.addEventListener('click', () => {
+        pagebar.style.display = 'block';
+        pagebarmini.style.display = 'none'
+    })
+    // loadFromFigma(demoFigmaJsonBig222)
 
     console.log(stage); 
     /* 8const response = await fetch('../assets/Di-3d.png');

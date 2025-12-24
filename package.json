@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite .",
-    "build:font": "msdf-bmfont --reuse -o ./PingFangSC-msdf/atlas.png -i ./PingFangSC-msdf/charset.txt -f json ./PingFangSC-main/ttf/PingFangSC-Regular.ttf"
+    "build:font": "msdf-bmfont --reuse -o ./PingFangSC-msdf/atlas.png -i ./PingFangSC-msdf/charset.txt -f json ./PingFangSC-main/ttf/PingFangSC-Regular.ttf",
+    "build:demo": "vite build --config  ./vite.demobuild.config.js"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
     "msdf-bmfont-xml": "^2.8.0",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vite-plugin-static-copy": "^3.1.4"
   },
   "dependencies": {
     "d3-color": "^3.1.0",
