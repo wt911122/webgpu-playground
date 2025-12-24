@@ -204,7 +204,7 @@ function FilterPainter() {
                 }
             });
             // applyFilters end
-            console.log(expand)
+            // console.log(expand)
             const bindGroup = device.createBindGroup({
                 layout: textureBindGroupLayout,
                 entries: [

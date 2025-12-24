@@ -82,6 +82,7 @@ class BaseShape extends JEventTarget {
         this._shadowBlur = configs.shadowBlur || 0;
         this.flushColor();
         this._bindFlushColor = this.flushColor.bind(this);
+        this._bindUpdateLocalTransform = this.updateLocalTransform.bind(this);
         this._boundingbox = new Box(this);
         this._localBoundingbox = new Box(this);
         // if(configs.rotation) {
@@ -161,6 +162,7 @@ class BaseShape extends JEventTarget {
 
     set scale(value){
         vec2.copy(this._scale, value);
+        addDirtyWork(this._bindUpdateLocalTransform)
     }
 
     get origin() {

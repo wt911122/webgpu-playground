@@ -25,13 +25,14 @@ import { iterator } from './resolve-figmajson';
 import figmademojson from './figmademo.json';
 // import figmademojsonBig from './demo-figmajson-big.json';
 // import untitlefigmajson from './untitlefigmajson2.json';
-// import arrowFigmajson from './arrow-figmajson.json';
+import arrowFigmajson from './arrow-figmajson.json';
 // import untitlefigmajson from './untitlefigmajson2.json';
 import figmademojsonBig2 from './demo-figmajson-big2.json';
 import knowlegetitlejson from './demo-figmajson-knowlegetitle.json'
 import touxiangjson from './figma-touxiang-json.json';
 import figmatoken from './figmatoken.env?raw';
 import simpleFigmajson from './demo-figmajson-simple-json.json'
+import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
 
 (async function () {
     // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
@@ -337,7 +338,7 @@ import simpleFigmajson from './demo-figmajson-simple-json.json'
             if(node.document.type === 'CANVAS') {
                 generateByFigmaCanvas(node.document);
             }
-            if(node.document.type ===  "FRAME" || node.document.type ===  "INSTANCE") {
+            if(node.document.type ===  "FRAME" || node.document.type ===  "INSTANCE" || node.document.type ===  "GROUP") {
                 generateByFigmaDocument(node.document);
             }
         }
@@ -366,7 +367,7 @@ import simpleFigmajson from './demo-figmajson-simple-json.json'
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
-    loadFromFigma(demoFigmaJson)
+    loadFromFigma(demoFigmaJsonBig222)
 
     console.log(stage); 
     /* 8const response = await fetch('../assets/Di-3d.png');
@@ -536,7 +537,7 @@ setBlendConstant().
         i++;
     } */
 
-    const msdftext = MSDFText({
+    /* const msdftext = MSDFText({
         x: 200, y: 50,
         width: 300,
         autoWrap: true,
@@ -555,7 +556,7 @@ setBlendConstant().
 （#NoTrillionaires）为口号，「在你所在的社区发起或加入一场抗议行动」，并将此次活动定位为对亿万富翁深度介入政治与科技领域的明确抵制。（来源：新浪财经）`
     })
 
-    stage.addToStack(msdftext);
+    stage.addToStack(msdftext); */
 
     // const ellipse2 = Ellipse({
     //     cx: 500,
@@ -576,7 +577,7 @@ setBlendConstant().
     // group3.addToStack(group2);
     // stage.addToStack(group2);
 
-    const group2 = Group();
+    /* const group2 = Group();
     const rect7 = Rectangle({
         x: 0,
         y: 0,
@@ -614,7 +615,7 @@ setBlendConstant().
     group2.addToStack(rect7);
     group2.addToStack(rect5);
     group2.addToStack(rect6);
-    stage.addToStack(group2);
+    stage.addToStack(group2);*/
     /* const rect5 = Rectangle({
         x: 0,
         y: 0,

@@ -10,7 +10,7 @@ import {
     MASK_END_DEPTH_STENCIL_CONFIG,
 } from '../../utils/mask-depthStencil-config';
 import { prepareUniform } from '../../utils/shape-uniform';
-
+import { measureText } from './measure-text';
 
 function MSDFTextPainter() {
     const MAX_OBJECTS = 30000;
@@ -174,14 +174,15 @@ function MSDFTextPainter() {
             const _lineHeight = lineHeight || fontSize;
             let measurements;
             if (textAlignHorizontal === 'CENTER') {
-                measurements = measureText(font, fontSize, content, _lineHeight, autoWrap ? definedWidth : undefined, ellipseEnd);
-                const w = definedWidth || measurements.width;
+                measurements = measureText(font, fontSize, content, _lineHeight, definedWidth, definedHeight, ellipseEnd);
+                const w = definedWidth; // || measurements.width;
                 measureText(
                     font,
                     fontSize,
                     content,
                     _lineHeight,
-                    autoWrap ? definedWidth : undefined,
+                    definedWidth, 
+                    definedHeight,
                     ellipseEnd,
                     (textX, textY, line, char) => {
                         const lineOffset = (w * 0.5 - measurements.lineWidths[line] * ratio * 0.5) / ratio;
@@ -190,7 +191,7 @@ function MSDFTextPainter() {
                         textArray[offset + 1] = textY;
                         textArray[offset + 2] = char.charIndex;
                         offset += 4;
-                    }
+                    },
                 );
             } else {
                 measurements = measureText(
@@ -198,7 +199,8 @@ function MSDFTextPainter() {
                     fontSize,
                     content,
                     _lineHeight,
-                    autoWrap ? definedWidth : undefined,
+                    definedWidth, 
+                    definedHeight,
                     ellipseEnd,
                     (textX, textY, line, char) => {
                         textArray[offset] = textX;
@@ -416,6 +418,7 @@ function measureText(
         printedCharCount,
     };
 }*/
+/* 
 function measureText(
     font,
     fontSize,
@@ -564,7 +567,7 @@ function measureText(
 
     lineWidths.push(textOffsetX);
     maxWidth = Math.max(maxWidth, textOffsetX);
-    console.log(lineWidths.length, _lineHeight, lineHeight)
+    // console.log(lineWidths.length, _lineHeight, lineHeight)
     return {
         width: maxWidth * ratio,
         height: (ellipsis ? 1 : lineWidths.length) * lineHeight,
@@ -572,3 +575,4 @@ function measureText(
         printedCharCount,
     };
 }
+*/

@@ -331,17 +331,14 @@ function SelectBox() {
         jc.stage.addEventListener('zoom', e => {
             if(target.shape) {
                 const zoom = 1/e.detail.zoom;
-                // console.log(zoom)
-                // const t = [zoom, zoom];
-                // cpA.scale = t;
-                // cpA.flushTransform();
-                // cpB.scale = t;
-                // cpB.flushTransform();
-                // cpC.scale = t;
-                // cpC.flushTransform();
-                // cpD.scale = t;
-                // cpD.flushTransform();
-                // cpRotate.scale = t;
+                const t = [zoom, zoom];
+                cpA.scale = t;
+                cpB.scale = t;
+                cpC.scale = t;
+                cpD.scale = t;
+                cpRotate.scale = t;
+                originPoint.scale = t;
+                pivotPoint.scale = t;
                 // cpRotate.flushTransform();
                 root.updateWorldMatrix()
                 root.markMaterialDrity();
