@@ -33,7 +33,11 @@ import touxiangjson from './figma-touxiang-json.json';
 // import figmatoken from './figmatoken.env?raw';
 import simpleFigmajson from './demo-figmajson-simple-json.json'
 import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
-
+import demodropshadow from './demo-figmadropshadow-shadow.json'
+import demodropshadow2 from './demo-dropshadow.json';
+function toFixed (str) {
+    return str.toFixed(0);
+}
 (async function () {
     // const yaheifontRes = await fetch('/assets/font/ya-hei-ascii-msdf.json');
     // const yaheifontjson = await yaheifontRes.json();
@@ -283,6 +287,21 @@ import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
         if(shape) {
              shape.id = data.id;
         }
+        if(type !== 'Group' && data.effects) {
+            const effects = data.effects;
+            if(effects.length > 0) {
+                effects.forEach(effect => {
+                   if(effect.type === 'DROP_SHADOW' && effect.visible) {
+                        shape.shadowColor =  `rgba(${toFixed(effect.color.r * 255)}, ${toFixed(effect.color.g * 255)}, ${toFixed(effect.color.b * 255)}, ${effect.color.a})`
+                        shape.shadowBlur = effect.radius;
+                        shape.shadowOffsetX = effect.offset.x;
+                        shape.shadowOffsetY = effect.offset.y;
+                        // shape.flushColor();
+                    }
+                });
+            }
+            
+        }
        
         
         if(data.children) {
@@ -362,17 +381,17 @@ import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
             })
             .then(response => response.json())
             .then(data => {
-                stage.clear();
+                jc.clear();
                 loadFromFigma(data);
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
 
     const list = [
-        { text: '设计稿1', value: figmademojson },
+        { text: '设计稿1', value: arrowFigmajson },
         { text: '设计稿2', value: figmademojsonBig2 },
-        { text: '设计稿3', value: simpleFigmajson },
-        { text: '设计稿4', value: demoFigmaJsonBig222 }
+        { text: '设计稿3', value: demoFigmaJsonBig222 },
+        { text: '设计稿4', value: demodropshadow }
     ]
     var container = document.getElementById('designerlist');
     list.forEach(item => {
@@ -395,7 +414,25 @@ import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
         pagebar.style.display = 'block';
         pagebarmini.style.display = 'none'
     })
-    // loadFromFigma(demoFigmaJsonBig222)
+
+    const rect811 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
+        fill: 'rgb(255, 128, 0)',
+        stroke: 'black',
+        rotation: 0,
+        strokeWidth: 1,
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+        shadowBlur: 12,
+        shadowOffsetX: 5,
+        shadowOffsetY: 5
+    });
+    stage.addToStack(rect811);
+
+
+    loadFromFigma(simpleFigmajson)
 
     console.log(stage); 
     /* 8const response = await fetch('../assets/Di-3d.png');
@@ -605,13 +642,46 @@ setBlendConstant().
     // group3.addToStack(group2);
     // stage.addToStack(group2);
 
-    /* const group2 = Group();
+     const group2 = Group();
     const rect7 = Rectangle({
         x: 0,
         y: 0,
         width: 200,
         height: 140,
+        fill: 'rgb(0,0, 0)',
+        stroke: 'black',
+        rotation: 0,
+        strokeWidth: 1,
+    });
+    rect7.applyFilter('BlurFilter', {
+        iterations: 6,
+        blur: 16
+    });
+     const rect8 = Rectangle({
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 140,
         fill: 'rgb(255, 255, 0)',
+        stroke: 'black',
+        rotation: 0,
+        strokeWidth: 1,
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+        shadowBlur: 12,
+        shadowOffsetX: 5,
+        shadowOffsetY: 5
+    });
+    // rect8.applyFilter('BlurFilter', {
+    //     iterations: 2,
+    //     blur: 16
+    // });
+
+    const rect9 = Rectangle({
+        x: -20,
+        y: -20,
+        width: 240,
+        height: 180,
+        fill: 'rgb(255, 128, 0)',
         stroke: 'black',
         rotation: 0,
         strokeWidth: 1,
@@ -626,24 +696,43 @@ setBlendConstant().
         rotation: Math.PI/6,
         strokeWidth: 1,
     });
-    const rect6 = Path({
-        path: `M 10,30
-           A 20,20 0,0,1 50,30
-           A 20,20 0,0,1 90,30
-           Q 90,60 50,90
-           Q 10,60 10,30 
-           M 10 80 
-           C 40 10, 65 10, 95 80 
-           S 150 150, 180 80`,
-        // fill: 'rgb(0, 255, 255)',
-        stroke: 'black',
-        strokeWidth: 2,
-    })
+    // const rect6 = Path({
+    //     path: `M 10,30
+    //        A 20,20 0,0,1 50,30
+    //        A 20,20 0,0,1 90,30
+    //        Q 90,60 50,90
+    //        Q 10,60 10,30 
+    //        M 10 80 
+    //        C 40 10, 65 10, 95 80 
+    //        S 150 150, 180 80`,
+    //     // fill: 'rgb(0, 255, 255)',
+    //     stroke: 'black',
+    //     strokeWidth: 2,
+    // })
 
-    group2.addToStack(rect7);
-    group2.addToStack(rect5);
-    group2.addToStack(rect6);
-    stage.addToStack(group2);*/
+    // group2.addToStack(rect9);
+    // group2.addToStack(rect7);
+    group2.addToStack(rect8);
+    // group2.addToStack(rect5);
+    // group2.addToStack(rect6);
+    stage.addToStack(group2);
+
+     const path2 = Path({
+        x: 30,
+        y: 40,
+        path: "M0,0L200,0L200,200L0,200Z",
+        opacity: 1,
+        fill: 'rgb(255, 255, 0)',
+        // texture: linearGradientTexture,
+        // strokeWidth: 2,
+        stroke: 'black',
+    })
+    path2.applyFilter('BlurFilter', {
+        filterSize: 80,
+        iterations: 6,
+        blur: 160
+    });
+    // stage.addToStack(path2);
     /* const rect5 = Rectangle({
         x: 0,
         y: 0,

@@ -1,5 +1,6 @@
 import * as d3 from 'd3-color';
 import { mat3, vec2 } from 'gl-matrix';
+import { paddingMat3 } from '../utils/transform';
 import { updateLocalTransform, decomposeLocalTransform } from '../utils/transform';
 import { Box } from '../utils/box';
 import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
@@ -65,13 +66,30 @@ class BaseShape extends JEventTarget {
     w = 0;
     h = 0;
 
+    _filters = [];
+    get useTexture() {
+        return this._filters.length > 0;
+    }
+
+    get useDropShadown() {
+        return this._shadowBlur && this._shadowColor;
+    }
+
+    get filters() {
+        return this._filters;
+    }
+
+    applyFilter(filter, options) {
+        this._filters.push({ filter, options })
+    }
 
     constructor(configs = {}) {
         super();
+        this._bindFlushColor = this.flushColor.bind(this);
         this.visible = configs.visible ?? true;
         this.fill = (configs.fill || TRANSPARENT);
         this.texture = configs.texture || undefined;
-        this.blurFilter = configs.blurFilter || undefined;
+        // this.blurFilter = configs.blurFilter || undefined;
         this.stroke = (configs.stroke || TRANSPARENT);
         this._opacity = configs.opacity ?? 1;
         // this._strokeWidth = configs.strokeWidth || 0;
@@ -81,7 +99,7 @@ class BaseShape extends JEventTarget {
         this._shadowOffsetY = configs.shadowOffsetY || 0;
         this._shadowBlur = configs.shadowBlur || 0;
         this.flushColor();
-        this._bindFlushColor = this.flushColor.bind(this);
+        
         this._bindUpdateLocalTransform = this.updateLocalTransform.bind(this);
         this._boundingbox = new Box(this);
         this._localBoundingbox = new Box(this);
@@ -184,10 +202,10 @@ class BaseShape extends JEventTarget {
     set fill(value) {
         const c = d3.color(value || TRANSPARENT);
         this._fill = c;
+        this._materialdirty = true;
+        addDirtyWork(this._bindFlushColor);
         if(this.jcanvas) {
-            this._materialdirty = true;
-            addDirtyWork(this._bindFlushColor)
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set texture(value) {
@@ -199,16 +217,16 @@ class BaseShape extends JEventTarget {
         if(this.jcanvas) {
             this._materialdirty = true;
             this._texturedirty = true;
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set stroke(value) {
         const c = d3.color(value || TRANSPARENT);
         this._stroke = c;
+        this._materialdirty = true;
+        addDirtyWork(this._bindFlushColor);
         if(this.jcanvas) {
-            this._materialdirty = true;
-            addDirtyWork(this._bindFlushColor)
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set strokeLineDash(value) {
@@ -216,39 +234,49 @@ class BaseShape extends JEventTarget {
         this.markDirty();
         if(this.jcanvas) {
             this._materialdirty = true;
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
 
     set shadowColor(value) {
         const c = d3.color(value || TRANSPARENT);
         this._shadowColor = c;
+        this._materialdirty = true;
+        addDirtyWork(this._bindFlushColor);
         if(this.jcanvas) {
-            this._materialdirty = true;
-            addDirtyWork(this._bindFlushColor)
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set shadowOffsetX(value) {
         this._shadowOffsetX = value || 0;
         if(this.jcanvas) {
             this._materialdirty = true;
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set shadowOffsetY(value) {
         this._shadowOffsetY = value || 0;
         if(this.jcanvas) {
             this._materialdirty = true;
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
     set shadowBlur(value) {
         this._shadowBlur = value || 0;
         if(this.jcanvas) {
             this._materialdirty = true;
-            addDirtyWork(this.jcanvas._bindMeshAndRender);
+            this.jcanvas._bindMeshAndRender && addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
+    }
+
+    get shadowBlur() {
+        return this._shadowBlur
+    }
+    get shadowOffsetX() {
+        return this._shadowOffsetX
+    }
+    get shadowOffsetY() {
+        return this._shadowOffsetY
     }
 
     get fill() {
@@ -284,10 +312,6 @@ class BaseShape extends JEventTarget {
     }
     get visible() {
         return this._visible;
-    }
-
-    get useTexture() {
-        return false;
     }
 
     flushColor() {
@@ -395,9 +419,13 @@ class BaseShape extends JEventTarget {
         mat3.set(this._localTransform, m00, m01, 0, m10, m11, 0, m20, m21, 1)
     }
 
-
-    applyFilter(filter, options) {
-        this.filters.push(filter);
+    getFilterConfig() {
+        const t = {
+            _zIndex: this._zIndex,
+            _opacity: this._opacity,
+            mat: paddingMat3(this._currentMat)
+        };
+        return t;
     }
 }
 

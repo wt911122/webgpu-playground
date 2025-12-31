@@ -2,6 +2,7 @@ import Layer from '../../layer/layer';
 import { mat3, vec2 } from 'gl-matrix';
 import sdfShader from './rect.wgsl?raw';
 import sdfMaskShader from './rect-mask.wgsl?raw';
+import sdfTextureShader from './rect-texture.wgsl?raw';
 import shadowShader from './shadow.wgsl?raw';
 // console.log(circleShader)
 import { paddingMat3, copyMat3 } from '../../utils/transform';
@@ -21,6 +22,161 @@ function SDFRectPainter() {
     const INDICES_ARRAY = new Uint16Array([
         0, 1, 2, 0, 2, 3
     ]);
+
+    const VERTEX_ARRAY_TEXTURE = new Float32Array([
+        -1, -1,     -1,  1,
+         1, -1,      1,  1,
+         1,  1,      1, -1,
+        -1,  1,     -1, -1
+    ]); 
+     const preferredCanvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    function generateTextureRender(context) {
+        const device = context.device;
+        const defaultTexture = context.texturePainter.defaultTexture;
+        const shapeProgram = device.createShaderModule({
+            code: sdfTextureShader,
+        });
+
+        const vertexBuffer = createBufferWithData(device, VERTEX_ARRAY_TEXTURE, GPUBufferUsage.VERTEX);
+        const indicesBuffer = createBufferWithData(device, INDICES_ARRAY, GPUBufferUsage.INDEX);
+        
+
+        const bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                { 
+                    binding: 0, visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
+                    buffer: { type: 'uniform', minBindingSize: 80 },
+                },
+            ],
+        });
+        const textureBindGroupLayout = context.texturePainter.textureBindGroupLayout;
+        const pipelineLayout = device.createPipelineLayout({
+            bindGroupLayouts: [ bindGroupLayout, textureBindGroupLayout ],
+        });
+
+
+        const pipelineDescription = {
+            label: 'mesh texture pipeline',
+            layout: pipelineLayout,
+            vertex: {
+                module: shapeProgram,
+                entryPoint: "vs",
+                buffers: [
+                    {
+                        arrayStride: 4 * 4,
+                        attributes: [
+                            { shaderLocation: 0, offset: 0, format: 'float32x2' },
+                            { shaderLocation: 1, offset: 8, format: 'float32x2' },
+                        ],
+                        stepMode: "vertex"
+                    },
+                ],
+            },
+            fragment: {
+                module: shapeProgram,
+                entryPoint: "fs",
+                targets: [{ 
+                    format: preferredCanvasFormat, 
+                    blend: {
+                        color: {
+                            operation: 'add',
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha'
+                        },
+                        alpha: {
+                            operation: 'add',
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha'
+                        }
+                    }
+                }],
+
+            },
+        }
+
+        const renderShapePipeline = device.createRenderPipeline(pipelineDescription);
+        function renderTexture(instance, config, originTexture) {
+            const { 
+                x, y, w, h, strokeWidth, borderRadius, type, _zIndex, mat, _colors, texture, _opacity
+            } = config;
+
+            const uniformBuffer = device.createBuffer({
+                size: Float32Array.BYTES_PER_ELEMENT * 80,
+                usage: GPUBufferUsage.UNIFORM,
+                mappedAtCreation: true,
+            }) ;
+            const uniformValue = new Float32Array(uniformBuffer.getMappedRange());
+            uniformValue[0] = w;
+            uniformValue[1] = h;
+            uniformValue[2] = type;
+            uniformValue[3] = texture ? 1: 0;
+           
+            uniformValue[4] = strokeWidth.top;
+            uniformValue[5] = strokeWidth.right;
+            uniformValue[6] = strokeWidth.bottom;
+            uniformValue[7] = strokeWidth.left;
+
+            uniformValue[8] = borderRadius?.topRight || 0;
+            uniformValue[9] = borderRadius?.bottomRight  || 0;
+            uniformValue[10] = borderRadius?.topLeft  || 0;
+            uniformValue[11] = borderRadius?.bottomLeft || 0;
+
+            uniformValue[12] = _colors[0];
+            uniformValue[13] = _colors[1];
+            uniformValue[14] = _colors[2];
+            uniformValue[15] = _colors[3];
+
+            uniformValue[16] = _colors[4];
+            uniformValue[17] = _colors[5];
+            uniformValue[18] = _colors[6];
+            uniformValue[19] = _colors[7];
+            uniformBuffer.unmap();
+
+            const bindGroup = device.createBindGroup({
+                label: 'bindingGroup',
+                layout: bindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: uniformBuffer } },
+                ],
+            });
+            let textureBindGroup;
+            if(texture) {
+                if(texture.dirty) {
+                    texture.paint(context.texturePainter);
+                }
+                textureBindGroup = texture.bindGroup;
+            } else {
+                textureBindGroup = defaultTexture.bindGroup;
+            }
+
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                label: 'rect texture render pass',
+                colorAttachments: [
+                    {
+                        view: originTexture.createView(),
+                        clearValue: [0,0,0,0],
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        format: preferredCanvasFormat, 
+                    }
+                ]
+            });
+            pass.setPipeline(renderShapePipeline);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setIndexBuffer(indicesBuffer, 'uint16');
+            pass.setBindGroup(0, bindGroup);    
+            pass.setBindGroup(1, textureBindGroup);
+            pass.drawIndexed(6, 1);
+            pass.end();
+
+            device.queue.submit([encoder.finish()]);
+        }
+        
+        return {
+            renderTexture
+        }
+    }
     
     function generateRender(context) {
         const device = context.device;
@@ -227,8 +383,9 @@ function SDFRectPainter() {
                     _f = true;
                 }
                 const bindGroup = bindGroups[i];
+                const textureBindGroup = config.getBindGroup('textureBindGroup');
                 passEncoder.setBindGroup(0, bindGroup);  
-                passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));   
+                passEncoder.setBindGroup(1, textureBindGroup);   
                 passEncoder.drawIndexed(6, 1);
             }
         }
@@ -272,6 +429,7 @@ function SDFRectPainter() {
     return {
         name: 'SDFRectPainter',
         generateRender,
+        generateTextureRender,
     }
 }
 

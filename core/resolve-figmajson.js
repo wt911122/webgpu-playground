@@ -106,6 +106,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
                     constraints: json.constraints,
                     relativeTransform: [[1,0,0],[0,1,0]],
                     id: json.id,
+                    effects: json.effects
                 }
             ]
         }

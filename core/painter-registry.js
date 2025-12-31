@@ -2,6 +2,7 @@ import InstanceConfig from './config';
 import { paddingMat3 } from './utils/transform';
 
 class ShaperPainter {
+    name = '';
     pipelineRenderer = null;
     instanceRenderer = null;
     // Ctor = null;
@@ -20,14 +21,17 @@ class ShaperPainter {
     static = false;
 
     configsWeakMap = new WeakMap();
-
+    
+    _ConfigCor = InstanceConfig;
 
 
     constructor(meta) {
         Object.assign(this, {
+            name: meta.name,
             _renderCreator: meta.generateRender,
             _renderTextureCreator: meta.generateTextureRender,
             static: meta.static ?? false,
+            _ConfigCor: meta.configCor || InstanceConfig
         });
     }
 
@@ -100,41 +104,28 @@ class ShaperPainter {
         }
     }
 
-    collectFilterPainterConfig(instance, jcanvas) {
-        let instanceConfig = this.configsWeakMap.get(instance);
-        if(!instanceConfig) {
-            instanceConfig = new InstanceConfig(instance, {
-                getConfig() {
-                    return {
-                        _zIndex: instance._zIndex,
-                        _opacity: instance._opacity,
-                        mat: paddingMat3(instance._currentMat)
-                    }
-                }
-            });
-            this.configsWeakMap.set(instance, instanceConfig);
-            this.configs.push(instanceConfig);
-            this._collectInstanceConfig(instance, instanceConfig, jcanvas);
-        } else {
-            instanceConfig.updateConfig();
-            if(instance._geodirty) {
-                this._collectInstanceConfig(instance, instanceConfig, jcanvas);
-            }
-        }
+    // collectFilterPainterConfig(instance, jcanvas) {
+    //     let instanceConfig = this.configsWeakMap.get(instance);
+    //     if(!instanceConfig) {
+    //         instanceConfig = new FilterConfig(instance);
+    //         this.configsWeakMap.set(instance, instanceConfig);
+    //         this.configs.push(instanceConfig);
+    //         this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+    //     } else {
+    //         instanceConfig.updateConfig();
+    //         if(instance._geodirty) {
+    //             this._collectInstanceConfig(instance, instanceConfig, jcanvas);
+    //         }
+    //     }
        
-        return true;
-    }
+    //     return true;
+    // }
 
-    collectConfig(instance, jcanvas) {
-        const configMeta = this.getConfigFnMeta(instance);
-        if(!configMeta) {
-            return false;
-        }
-
+    collectConfigHandler(instance, jcanvas, configMeta) {
         let instanceConfig = this.configsWeakMap.get(instance);
         
         if(!instanceConfig) {
-            instanceConfig = new InstanceConfig(instance, configMeta);
+            instanceConfig = new this._ConfigCor(instance, configMeta);
             this.configsWeakMap.set(instance, instanceConfig);
             this.configs.push(instanceConfig);
             this._collectInstanceConfig(instance, instanceConfig, jcanvas);
@@ -144,10 +135,15 @@ class ShaperPainter {
                 this._collectInstanceConfig(instance, instanceConfig, jcanvas);
             }
         }
-        
-        // console.log(config)
-        // this._configLength = config.length;
         return true;
+    }
+
+    collectConfig(instance, jcanvas) {
+        const configMeta = this.getConfigFnMeta(instance);
+        if(!configMeta) {
+            return false;
+        }
+        return this.collectConfigHandler(instance, jcanvas, configMeta);
     }
 
     getConfigFnMeta(instance) {
@@ -193,7 +189,7 @@ class ShaperPainter {
     }
 
     clear() {
-        this.configs.length = 0;
+        this.configs.splice(0, this.configs.length);
         this.configsWeakMap = new WeakMap();
     }
 
@@ -207,8 +203,9 @@ class PainterRegistry {
             generateRender: meta.generateRender,
             generateTextureRender: meta.generateTextureRender,
             static: meta.static,
-        })
-        console.log(painter.static)
+            configCor: meta.configCor,
+            name: meta.name,
+        });
         this._painters.set(meta.name, painter);
         return painter;
     }

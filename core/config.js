@@ -73,5 +73,4 @@ class InstanceConfig {
     }
 
 }
-
 export default InstanceConfig;

@@ -56,5 +56,6 @@ const uv = array(
 
 
 @fragment fn fs(fsInput: OurVertexShaderOutput) -> @location(0) vec4f {
-    return textureSample(ourTexture, ourSampler, fsInput.texcoord);
+    var color = textureSample(ourTexture, ourSampler, fsInput.texcoord);
+    return color;
 }

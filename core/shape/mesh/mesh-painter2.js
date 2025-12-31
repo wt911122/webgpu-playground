@@ -16,6 +16,8 @@ function MeshPainter() {
 
     function generateTextureRender(context) {
         const device = context.device;
+       
+        const defaultTexture = context.texturePainter.defaultTexture;
         const meshTextureShaderProgram = device.createShaderModule({
             code: textureShader,
         });
@@ -147,6 +149,7 @@ function MeshPainter() {
 
             const encoder = device.createCommandEncoder();
             const pass = encoder.beginRenderPass({
+                label: 'mesh texture render pass',
                 colorAttachments: [
                     {
                         view: originTexture.createView(),
@@ -394,7 +397,8 @@ function MeshPainter() {
             passEncoder.setPipeline(MaskBeginPipline);
             passEncoder.setVertexBuffer(0, config.getBuffer('VertexBuffer'));
             passEncoder.setIndexBuffer(config.getBuffer('IndicesBuffer'), 'uint16');
-            passEncoder.setBindGroup(0, bindGroup);    
+            passEncoder.setBindGroup(0, bindGroup); 
+            passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));     
             passEncoder.drawIndexed(config.getPainterConfig('IndicesLength'), 1);
         }
 
@@ -404,7 +408,8 @@ function MeshPainter() {
             passEncoder.setPipeline(MaskEndPipline);
             passEncoder.setVertexBuffer(0, config.getBuffer('VertexBuffer'));
             passEncoder.setIndexBuffer(config.getBuffer('IndicesBuffer'), 'uint16');
-            passEncoder.setBindGroup(0, bindGroup);    
+            passEncoder.setBindGroup(0, bindGroup);   
+            passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));   
             passEncoder.drawIndexed(config.getPainterConfig('IndicesLength'), 1);
         }
 

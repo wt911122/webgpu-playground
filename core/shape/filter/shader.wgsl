@@ -26,6 +26,7 @@ struct PerObjectUniforms {
 @group(1) @binding(1) var textureSampler: sampler;
 
 struct VertexIn {
+    @builtin(vertex_index) vertexIndex : u32,
     @location(0) vertexPos: vec2f,
     @location(1) uv: vec2f,
 };
@@ -47,8 +48,21 @@ fn vs(
         (vert.vertexPos)
     );
 
-    // var position = (obj.size / 2.0) * (vert.vertexPos + vec2f(1,1)) ; 
 
+    // var position = (obj.size / 2.0) * (vert.vertexPos + vec2f(1,1)) ; 
+    // let pos = array(
+    //     vec2f( 0,  200),  // top center
+    //     vec2f(200, 200),  // bottom left
+    //     vec2f(0, 0),   // bottom right
+    //     vec2f( 0,  0),  // top center
+    //     vec2f(200, 200),  // bottom left
+    //     vec2f(200, 0)   // bottom right
+    // );
+    // let mtx = mat3x3(
+    //     vec3f(1, 0, 0),
+    //     vec3f(0, 1, 0),
+    //     vec3f(0, 0, 1),
+    // )
     var output:VertexOutput;
     var zindexTop = shapeUniforms.zindexTop;
     output.position = vec4f((gloabalUniforms.u_ProjectionMatrix
@@ -56,6 +70,17 @@ fn vs(
         * obj.shapeMatrix
         * vec3f(position, 1)).xy, (zindexTop - obj.zindex - 1)/zindexTop, 1);
     output.vUV = vert.uv;
+
+    // let pos = array(
+    //     vec2f( 0,  1),  // top center
+    //     vec2f(1, 1),  // bottom left
+    //     vec2f(0, 0),   // bottom right
+    //     vec2f( 0,  0),  // top center
+    //     vec2f(1, 1),  // bottom left
+    //     vec2f(1, 0)   // bottom right
+    // );
+    // output.position = vec4f(pos[vert.vertexIndex], (zindexTop - obj.zindex - 1)/zindexTop, 1.0);
+
     return output;
 }
 

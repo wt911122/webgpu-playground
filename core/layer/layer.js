@@ -106,10 +106,19 @@ export function traverse(layer, callback, callbackLeave) {
 
 export function traverseOnlyLayer(layer, callback, callbackLeave) {
     if(layer._stack) {
+        // callback(layer);
+        // layer._stack.forEach(instance => {
+        //     traverseOnlyLayer(instance, callback, callbackLeave)
+        // });
+        // callbackLeave(layer);
+
         callback(layer);
-        layer._stack.forEach(instance => {
+        let i = layer._stack.length-1;
+        while(i >= 0) {
+            const instance = layer._stack[i];
             traverseOnlyLayer(instance, callback, callbackLeave)
-        });
+            i--;
+        }
         callbackLeave(layer);
     };
 }

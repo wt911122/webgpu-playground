@@ -7,7 +7,8 @@ export const addClearSourceWork = (jflow, source) => {
 export const addDirtyWork = (work) => {
     if(queue.includes(work)) {
         const idx = queue.findIndex(w => w === work);
-        queue.splice(idx, 1, work);
+        queue.splice(idx, 1);
+        queue.push(work);
     } else {
         queue.push(work);
     }

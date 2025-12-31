@@ -20,8 +20,6 @@ class Path extends Shape {
 
     _strokeWidth = 0;
 
-    _filters = [];
-
     set width(val) {}
 
     set height(val) {}
@@ -195,18 +193,6 @@ class Path extends Shape {
             _colors,
             mat: paddingMat3(_currentMat)
         }
-    }
-
-    get useTexture() {
-        return this._filters.length > 0;
-    }
-
-    get filters() {
-        return this._filters;
-    }
-
-    applyFilter(filter, options) {
-        this._filters.push({ filter, options })
     }
 
     static attachPainter(painter) {

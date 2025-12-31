@@ -19,6 +19,7 @@ import MSDFTextPainter from './shape/msdftext/msdf-painter2';
 import SmoothPolyPainter from './shape/smooth-polyline/smooth-poly2.js';
 import SDFRectPainter from './shape/sdf/sdf-rect-painter2';
 import FilterPainter from './shape/filter/filter-painter';
+import DropShadowPainter from './shape/drop-shadow/drop-shadow-painter.js'
 
 import GroupCtor from './layer/group';
 import EllipseCtor from './instance/ellipse';
@@ -69,13 +70,14 @@ class JCanvas {
     constructor() {
         this._stage.jcanvas = this;
         this.usePainter(GridPainter);
-        // this.usePainter(SDFPainter);
+
         this.usePainter(SDFRectPainter);
         this.usePainter(MeshPainter);
-        // this.usePainter(PolylinePainter);
         this.usePainter(SmoothPolyPainter);
         this.usePainter(MSDFTextPainter);
         this.usePainter(FilterPainter);
+        this.usePainter(DropShadowPainter);
+       
 
        
         this.useShape('Group', GroupCtor);
@@ -310,7 +312,7 @@ class JCanvas {
         if(instance._materialdirty || instance._geodirty) {
             if(instance.useTexture) {
                 const painter = this._painterRegistry.getPainter('FilterPainter');
-                const dirty = painter.collectFilterPainterConfig(instance, this);
+                const dirty = painter.collectConfigHandler(instance, this);
                 if(dirty) {
                     painter._dirty = true
                 }
@@ -405,9 +407,7 @@ class JCanvas {
         // let maskLayer = -1;
 
         passEncoder.setStencilReference(0);
-        _painterRegistry.iterateGeneral((painter) => {
-            painter.render(encoder, passEncoder)
-        })
+        
         this._stage.traverseOnlyLayer(
             (i) => {
                 // if(i._maskLayer > maskLayer) {
@@ -421,9 +421,7 @@ class JCanvas {
                         });
                         passEncoder.setStencilReference(_maskLayer);
                         // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
-                        _painterRegistry.iterateGeneral((painter) => {
-                            painter.render(encoder, passEncoder, _maskIndex)
-                        })
+                       
                         // console.log('setStencilReference', _maskLayer)
                     }
                     // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
@@ -437,6 +435,10 @@ class JCanvas {
                 // if(i._maskLayer > prevLayer) {
                 const { _maskIndex, _maskLayer, mask } = i;
                 if(mask) {
+                    // console.log('draw mask: ', _maskLayer)
+                     _painterRegistry.iterateGeneral((painter) => {
+                        painter.render(encoder, passEncoder, _maskIndex)
+                    })
                     // console.log(`renderMaskEnd layer:${_maskLayer}, maskIndex:${_maskIndex}`);
                     _painterRegistry.iterateOnInstance(mask, (painter) => {
                         painter.renderMaskEnd(mask, encoder, passEncoder);
@@ -444,14 +446,16 @@ class JCanvas {
                     passEncoder.setStencilReference(_maskLayer-1);
                     // console.log('setStencilReference', _maskLayer-1)
                 }
-                // }
 
             })
-        
+        //  console.log('draw mask: ', undefined)
         _painterRegistry.iterateStatic((painter) => {
             painter.render(encoder, passEncoder)
         })
 
+        _painterRegistry.iterateGeneral((painter) => {
+            painter.render(encoder, passEncoder)
+        })
         passEncoder.end();
 
         device.queue.submit([encoder.finish()]);
@@ -515,6 +519,7 @@ function _createRenderPassDescriptor(ctx, stencilTexture) {
     }*/
 
     return {
+        label: 'main render pass',
         colorAttachments: [
             {
                 view: ctx.getCurrentTexture().createView(),

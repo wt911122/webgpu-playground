@@ -232,8 +232,7 @@ class Rectangle extends Shape {
     getShapeConfig() {
         const { 
             w, h, strokeWidth, borderRadius, _zIndex, _currentMat, 
-            _colors, texture, _opacity, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
-            _strokeLineDash
+            _colors, texture, _opacity,
          } = this;
         //  console.log(_zIndex);
         return {
@@ -244,7 +243,7 @@ class Rectangle extends Shape {
             _opacity,
             _zIndex, 
             texture,
-            _colors, _shadowOffsetX, _shadowOffsetY, _shadowBlur,
+            _colors,
             type: Rectangle.type,
             mat: paddingMat3(_currentMat)
         }
@@ -307,9 +306,15 @@ class Rectangle extends Shape {
         return [
             {
                 ctor: Rectangle,
+                condition: (instance) => instance._shadowColor && instance._shadowBlur > 0,
+                painter: 'DropShadowPainter',
+            },
+            {
+                ctor: Rectangle,
                 painter: 'SDFRectPainter',
                 configGetter: 'getShapeConfig'
             }, 
+
             // {
             //     ctor: Rectangle,
             //     condition: (instance) => instance._strokeWidth > 0 && instance._strokeLineDash.length > 0,

@@ -6,6 +6,24 @@ import {
 import { prepareUniform, createFloatBufferAtCreate, createUnit16BufferAtCreate } from '../../utils/shape-uniform';
 import { paddingMat3, copyMat3 } from '../../utils/transform';
 import { prepareFilter as prepareBlurFilter } from './blur-filter2'; 
+import InstanceConfig from '../../config'; 
+
+class FilterConfig extends InstanceConfig {
+    constructor(instance, configMeta = {}) {
+        super(instance, configMeta);
+    }
+    updateConfig() {
+        this._checkState();
+        if(this._enable) {
+            const instance = this.getInstance();
+            Object.assign(this._config,  {
+                _zIndex: instance._zIndex,
+                _opacity: instance._opacity,
+                mat: paddingMat3(instance._currentMat)
+            });
+        }
+    }
+}
 
 function FilterPainter() {
     const MAX_OBJECTS = 30000;
@@ -151,7 +169,7 @@ function FilterPainter() {
         const blurFilter = prepareBlurFilter(device);
         Filters.set(blurFilter.name, blurFilter)
         
-        function collecInstanceConfig(instance, config, jcanvas) {
+        function collecInstanceConfig(instance, config, jcanvas, filters, modifyConfig) {
             if(!config.enable) {
                 return;
             }
@@ -166,11 +184,11 @@ function FilterPainter() {
             });
 
             /*const canvas = document.createElement('canvas');
-            canvas.width = 200;
-            canvas.height = 200;
+            canvas.width = instance.width;
+            canvas.height = instance.height;
             const context = canvas.getContext('2d');
             context.fillStyle = 'rgb(255, 255, 0)';
-            context.fillRect(0, 0, 200, 200);
+            context.fillRect(0, 0, instance.width, instance.height);
 
             document.body.append(canvas)
 
@@ -178,12 +196,15 @@ function FilterPainter() {
                 { source: canvas },
                 { texture: originTexture },
                 [canvas.width, canvas.height],
-            );*/
+            ); */
 
             jcanvas._painterRegistry.iterateOnInstance(instance, (painter) => {
                 const meta = painter.getConfigFnMeta(instance);
                 if(meta && painter._renderTexture) {
-                    const config = instance[meta.fnName]()
+                    const config = instance[meta.fnName]();
+                    if(modifyConfig) {
+                        modifyConfig(instance, config, painter);
+                    }
                     painter._renderTexture(instance, config, originTexture);
                 }
             });
@@ -191,7 +212,7 @@ function FilterPainter() {
             let lastTexture = originTexture;
             let expand = [0,0];
             // applyFilters start
-            instance.filters.forEach(({ filter, options }) => {
+            (filters || instance.filters).forEach(({ filter, options }) => {
                 const filterInstance = Filters.get(filter);
                 if(filterInstance) {
                     const {
@@ -296,7 +317,7 @@ function FilterPainter() {
     return {
         name: 'FilterPainter',
         generateRender,
-        postprocess: true,
+        configCor: FilterConfig,
     }
 }
 

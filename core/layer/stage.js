@@ -61,27 +61,50 @@ class Stage extends Layer {
     }
 
     traverseOnlyLayer(callback, callbackLeave) {
-        this._stack.forEach(instance => {
+        // 由上层向下层绘制，保证 blender 顺序，以及模板检测效率
+        let i = this._stack.length-1;
+        while(i >= 0) {
+            const instance = this._stack[i];
             if(instance._stack) {
                 traverseOnlyLayer(instance, callback, callbackLeave)
             } else {
                 callback(instance);
             }
-        });
-        this._toolstack.forEach(instance => {
+            i--;
+        }
+        // this._stack.forEach(instance => {
+        //     if(instance._stack) {
+        //         traverseOnlyLayer(instance, callback, callbackLeave)
+        //     } else {
+        //         callback(instance);
+        //     }
+        // });
+        i = this._toolstack.length-1;
+        while(i >= 0) {
+            const instance = this._toolstack[i];
             if(instance._stack) {
                 traverseOnlyLayer(instance, callback, callbackLeave)
             } else {
                 callback(instance);
             }
-        });
+            i--;
+        }
+        // this._toolstack.forEach(instance => {
+        //     if(instance._stack) {
+        //         traverseOnlyLayer(instance, callback, callbackLeave)
+        //     } else {
+        //         callback(instance);
+        //     }
+        // });
     }
 
     clear() {
-        this._stack.length = 0;
+        // this._stack.length = 0;
+        this._stack.splice(0, this._stack.length);
         const indexRBush = this.jcanvas.indexRBush;
         indexRBush.destroy();
-        this.meshAndRender();
+        addDirtyWork(this.jcanvas._bindMeshAndRender);
+        // this.meshAndRender();
     }
 }
 

@@ -79,7 +79,7 @@ export function prepareFilter(device) {
         const filterSize = Math.min(tileDim-1, Math.floor(blur/2));
         const iterations = options.iterations;
         const blurWidth = originWidth + blur*2;
-        const blurHeight = originWidth + blur*2;
+        const blurHeight = originHeight + blur*2;
 
         const expandTexture = createEmptyTexture(device, blurWidth, blurHeight);
 
