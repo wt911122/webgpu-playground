@@ -14,7 +14,7 @@ class FilterConfig extends InstanceConfig {
     }
     updateConfig() {
         this._checkState();
-        if(this._enable) {
+        if(this.enable) {
             const instance = this.getInstance();
             Object.assign(this._config,  {
                 _zIndex: instance._zIndex,
@@ -275,7 +275,7 @@ function FilterPainter() {
             cacheContext.transferBuffer = transferBuffer;
         }
 
-        function render(encoder, passEncoder, maskIndex, configs, cacheContext) {
+        function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
             let _f = false;
             const numObjects = configs.length;
             for (let i = 0; i < numObjects; ++i) {
@@ -285,6 +285,9 @@ function FilterPainter() {
                 }
                 const instance = config.getInstance();
                 if(instance._maskIndex !== maskIndex) {
+                    continue;
+                }
+                if(renderCondition && !renderCondition(instance)){
                     continue;
                 }
                 if(!_f) {

@@ -256,7 +256,7 @@ function SmoothPolyPainter() {
             transferBuffer.unmap();
         }
 
-        function render(encoder, passEncoder, maskIndex, configs, cacheContext) {
+        function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
             let _f = false;
             const numObjects = configs.length;
             for (let i = 0; i < numObjects; ++i) {
@@ -266,6 +266,9 @@ function SmoothPolyPainter() {
                 }
                 const instance = config.getInstance();
                 if(instance._maskIndex !== maskIndex) {
+                    continue;
+                }
+                if(renderCondition && !renderCondition(instance)){
                     continue;
                 }
                 if(!_f) {

@@ -13,7 +13,7 @@ class DropShadowConfig extends InstanceConfig {
         if(!this.shadowMat){
             this.shadowMat = mat3.create();
         }
-        if(this._enable) {
+        if(this.enable) {
             const instance = this.getInstance();
             const { shadowOffsetX, shadowOffsetY, shadowBlur } = instance;
             mat3.translate(this.shadowMat, instance.matrix, [shadowOffsetX, shadowOffsetY]);
@@ -60,9 +60,9 @@ function DropShadowPainter() {
             // console.log('DropShadowPainter beforeRender');
             filterRender.beforeRender(encoder, configs, cacheContext);
         }
-        function render(encoder, passEncoder, maskIndex, configs, cacheContext) {
+        function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
             // console.log('DropShadowPainter render');
-            filterRender.render(encoder, passEncoder, maskIndex, configs, cacheContext)
+            filterRender.render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition)
         }
         function afterRender(cacheContext) {
             // console.log('DropShadowPainter afterRender');

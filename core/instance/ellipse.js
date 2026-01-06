@@ -10,6 +10,7 @@ function dotProduct(v1, v2) {
 
 class Ellipse extends Shape {
     static type = 2;
+    name = 'Ellipse'
     w = 0;
     h = 0;
     startingAngle = 0;

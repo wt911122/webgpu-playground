@@ -11,6 +11,7 @@ const ZERO_WIDTH = {
 }
 class Rectangle extends Shape {
     static type = 1;
+    name = 'Rectangle'
     w = 0;
     h = 0;
 

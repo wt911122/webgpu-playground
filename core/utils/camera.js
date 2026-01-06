@@ -64,17 +64,7 @@ export function Camera() {
         _y = y;
         _zoom = zoom;
     } 
-
-    function prepareBuffer() {
-        const buffer = new Float32Array([
-            ...paddingMat3(CAM.getProjectMatrix()),
-            ...paddingMat3(CAM.getViewMatrix()),
-            ...paddingMat3(CAM.getViewProjectMatrixInv()),
-            CAM.getZoom(),
-        ]);
-        return buffer;
-    }
-
+    
     function read() {
         console.log(matrix, projectionMatrix, viewMatrix, viewProjectionMatrix, viewProjectionMatrixInv)
     }
@@ -101,6 +91,7 @@ export function Camera() {
         projection,
         pan, 
         zoom,
+        translate,
         getZoom,
         getAspectRatio,
         read,
@@ -109,7 +100,6 @@ export function Camera() {
         update,
         setMatrix,
         getViewProjectMatrixInv,
-        prepareBuffer
     }
 }
 

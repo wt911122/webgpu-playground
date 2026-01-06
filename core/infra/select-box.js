@@ -1,6 +1,9 @@
 import { mat3, vec2 } from 'gl-matrix';
 import { projectVector } from '../utils/transform';
-
+import { JEvent, JEVENT_PHASE } from '../event/event-target';
+class JSelectEvent extends JEvent {
+    phase = JEVENT_PHASE.TARGET;
+}
 function SelectBox() {
     const _parts_ = {
         root: null,
@@ -44,29 +47,33 @@ function SelectBox() {
         vec2.transformMat3(originvec, shape._origin, shape._currentMat) 
         originPoint.cx = originvec[0];
         originPoint.cy = originvec[1];
-        originPoint.visible = true;
+        // originPoint.visible = true;
         
         const pivotvec = vec2.create();
         vec2.transformMat3(pivotvec, shape._pivot, shape._currentMat) 
         pivotPoint.cx = pivotvec[0];
         pivotPoint.cy = pivotvec[1];
-        pivotPoint.visible = true;
+        // pivotPoint.visible = true;
         // console.log(boundary.path)
         
         cpRotate.cx = LT[0] + (RT[0] - LT[0])/2;
         cpRotate.cy = LT[1] + (RT[1] - LT[1])/2;
         // cpRotate.flushTransform();
-        boundary.visible = true;
-        cpA.visible = true;
-        cpB.visible = true;
-        cpC.visible = true;
-        cpD.visible = true;
-        cpRotate.visible = true;
+        
+        // boundary.visible = true;
+        // cpA.visible = true;
+        // cpB.visible = true;
+        // cpC.visible = true;
+        // cpD.visible = true;
+        // cpRotate.visible = true;
+        root.visible = true;
         root.updateWorldMatrix();
+        console.log('root updateWorldMatrix');
     }
 
     function _hide(temporary) {
         const {
+            root,
             boundary,
             cpA,
             cpB,
@@ -76,14 +83,15 @@ function SelectBox() {
             originPoint,
             pivotPoint,
         } = _parts_;
-        boundary.visible = false;
-        cpA.visible = false;
-        cpB.visible = false;
-        cpC.visible = false;
-        cpD.visible = false;
-        cpRotate.visible = false;
-        originPoint.visible = false;
-        pivotPoint.visible = false;
+        root.visible = false;
+        // boundary.visible = false;
+        // cpA.visible = false;
+        // cpB.visible = false;
+        // cpC.visible = false;
+        // cpD.visible = false;
+        // cpRotate.visible = false;
+        // originPoint.visible = false;
+        // pivotPoint.visible = false;
         if(!temporary) {
             target.shape = null;
         }   
@@ -224,13 +232,13 @@ function SelectBox() {
         const Group = jc.getShapeCtor('Group');
         const root = Group({
             ignoreHitTest: true,
+            visible: false,
         });
         const visible = false;
         const boundary = Path({
             path: '',
             stroke: 'blue',
             strokeWidth: 2,
-            visible,
         })
         boundary.checkHit = () => false;
         const [a, b, c, d] = [0,0,0,0];
@@ -240,7 +248,6 @@ function SelectBox() {
             fill: 'white',
             stroke: 'blue',
             strokeWidth: 1,
-            visible
         });
         const cpB = Ellipse({
             cx: c, cy: b,
@@ -248,7 +255,6 @@ function SelectBox() {
             fill: 'white',
             stroke: 'blue',
             strokeWidth: 1,
-            visible
         })
         const cpC = Ellipse({
             cx: c, cy: d,
@@ -256,7 +262,6 @@ function SelectBox() {
             fill: 'white',
             stroke: 'blue',
             strokeWidth: 1,
-            visible
         })
         const cpD = Ellipse({
             cx: a, cy: d,
@@ -264,7 +269,6 @@ function SelectBox() {
             fill: 'white',
             stroke: 'blue',
             strokeWidth: 1,
-            visible
         });
         const cpRotate = Ellipse({
             cx: 0, cy: 0,
@@ -272,19 +276,16 @@ function SelectBox() {
             fill: 'yellow',
             stroke: 'blue',
             strokeWidth: 1,
-            visible
         })
         const originPoint = Ellipse({
             cx: 0, cy: 0,
             width: 6, height: 6,
             fill: 'red',
-            visible
         });
         const pivotPoint = Ellipse({
             cx: 0, cy: 0,
             width: 6, height: 6,
             fill: 'purple',
-            visible
         });
         Object.assign(_parts_, {
             root,
@@ -307,15 +308,25 @@ function SelectBox() {
         root.addToStack(pivotPoint);
         jc.stage.addToToolStack(root);
 
-        jc.stage.addEventListener('click', e => {
-            // console.log(e.detail.target);
-            const shape = e.detail.target;
+        function selectShape(shape) {
+            const event = new JSelectEvent('targetchange', { 
+                oldTarget: target.shape, 
+                newTarget: shape === jc.stage ? null : shape
+            });
             if(shape === jc.stage) {
                 _hide();
             } else {
                 console.log(shape)
                 _render(shape);
             }
+           
+            jc.stage.dispatchEvent(event)
+        }
+
+        jc.stage.addEventListener('click', e => {
+            // console.log(e.detail.target);
+            const shape = e.detail.target;
+            selectShape(shape);
         });
         jc.stage.addEventListener('dragstartonstage', e => {
             if(!target.cpDragging) {
@@ -349,7 +360,10 @@ function SelectBox() {
         _cpHandler(cpB, 'rt', cpC, cpD, cpA);
         _cpHandler(cpC, 'rb', cpD, cpA, cpB);
         _cpHandler(cpD, 'lb', cpA, cpB, cpC);
-        _cpRotateHandler(cpRotate)
+        _cpRotateHandler(cpRotate);
+        return {
+            selectShape
+        }
     }
 
     return {

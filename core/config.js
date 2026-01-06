@@ -7,12 +7,12 @@ class InstanceConfig {
     _bindingGroup = new Map();
 
     _condition = undefined;
-    _enable = true;
+    _conditionEnable = true;
 
     _indexShift = 0;
 
     get enable() {
-        return this._enable;
+        return this._instance._real_visible && this._conditionEnable;
     }
 
     constructor(instance, configMeta) {
@@ -29,16 +29,15 @@ class InstanceConfig {
         if(this._condition) {
             enable = this._condition(this._instance);
         }
-        this._enable = this._instance.visible && enable;
-        return this._enable;
+        this._conditionEnable = enable;
     }
 
     updateConfig() {
         this._checkState();
-        if(this._enable && this._getConfigFnName) {
+        if(this.enable && this._getConfigFnName) {
             Object.assign(this._config,  this._instance[this._getConfigFnName]());
         }
-        if(this._enable &&  this._getConfigFn) {
+        if(this.enable &&  this._getConfigFn) {
             Object.assign(this._config,  this._getConfigFn(this._instance));
         }
     }

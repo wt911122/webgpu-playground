@@ -1,3 +1,6 @@
+import '../layers/layer';
+import { ListInterface, setupListInterface } from '../layers/interface';
+
 import JCanvas, { 
     createLinearGradientTextureCanvas, 
     defaultLinearOptions,
@@ -383,6 +386,7 @@ function toFixed (str) {
             .then(data => {
                 jc.clear();
                 loadFromFigma(data);
+                ListInterface.update(jc.extractLayers());
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
@@ -400,6 +404,7 @@ function toFixed (str) {
         li.addEventListener('dblclick', e => {
             jc.clear();
             loadFromFigma(item.value)
+            ListInterface.update(jc.extractLayers());
         })
         container.append(li);
     });
@@ -1091,6 +1096,50 @@ setBlendConstant().
     const wrapper = document.getElementById('app');
     await jc.$mount(wrapper);
     jc.mesh();
+    setupListInterface({
+        select: function(shape) {
+            const SelectBox = jc.getInfra('SelectBox');
+            SelectBox.selectShape(shape);
+        },
+        exportImage: function(shape) {
+            const canvas = jc.renderShapeToNewCanvas(shape);
+            // canvas.style.position = 'absolute';
+            // canvas.style.top = '20px';
+            // document.body.append(canvas);
+            const link = document.createElement('a');
+            const dataURL = canvas.toDataURL(`image/png`); 
+            const fileName = `download.png`;
+            const arr = dataURL.split(',');
+            let mime = '';
+            if (arr && arr.length > 0) {
+                const match = arr[0].match(/:(.*?);/);
+                if (match && match.length >= 2) mime = match[1];
+            }
+
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+
+            const blobObj = new Blob([u8arr], { type: mime });
+            link.addEventListener('click', () => {
+                link.download = fileName;
+                link.href = window.URL.createObjectURL(blobObj);
+            });
+            link.click();
+            
+        },
+        toggleVisible: function (shape) {
+           shape.visible = !shape.visible; 
+        }
+    })
+    ListInterface.update(jc.extractLayers());
+    jc.stage.addEventListener('targetchange', e => {
+        ListInterface.activate(e.detail.newTarget?._uuid);
+    })
     const canvas = jc.canvas;
     /*canvas.addEventListener('wheel', (event) => {
         event.preventDefault();

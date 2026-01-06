@@ -55,6 +55,8 @@ class Stage extends Layer {
         this._stack.forEach(instance => {
             traverse(instance, callback, callbackLeave)
         });
+    }
+    traverseTool(callback, callbackLeave) {
         this._toolstack.forEach(instance => {
             traverse(instance, callback, callbackLeave)
         });
@@ -72,13 +74,6 @@ class Stage extends Layer {
             }
             i--;
         }
-        // this._stack.forEach(instance => {
-        //     if(instance._stack) {
-        //         traverseOnlyLayer(instance, callback, callbackLeave)
-        //     } else {
-        //         callback(instance);
-        //     }
-        // });
         i = this._toolstack.length-1;
         while(i >= 0) {
             const instance = this._toolstack[i];
@@ -89,13 +84,6 @@ class Stage extends Layer {
             }
             i--;
         }
-        // this._toolstack.forEach(instance => {
-        //     if(instance._stack) {
-        //         traverseOnlyLayer(instance, callback, callbackLeave)
-        //     } else {
-        //         callback(instance);
-        //     }
-        // });
     }
 
     clear() {

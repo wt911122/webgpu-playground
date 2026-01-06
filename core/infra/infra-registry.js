@@ -6,7 +6,8 @@ class Infra {
     }
 
     setup(context) {
-        this._setup(context);
+        const methods = this._setup(context);
+        Object.assign(this, methods);
     }
 }
 
@@ -17,6 +18,10 @@ class InfraRegistry {
         const ifr = new Infra(tool)
         this._infras.set(ifr.name, ifr);
         return ifr;
+    }
+    
+    getTool(name) {
+        return this._infras.get(name);
     }
 
     setup(context) {

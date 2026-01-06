@@ -2,9 +2,9 @@ import { vec2, mat3 } from 'gl-matrix';
 
 import Group from './layer/group';
 import Stage from './layer/stage';
-import Layer, { traverse } from './layer/layer';
+import Layer, { traverse, genLayerList } from './layer/layer';
 import { Camera } from './utils/camera';
-import { createCanvas } from './utils/canvas';
+import { createCanvas, createRawCanvas } from './utils/canvas';
 import { Box } from './utils/box';
 import IndexRBush from './utils/indexRBush.js';
 import { paddingMat3 } from './utils/transform';
@@ -131,6 +131,10 @@ class JCanvas {
         this._infraRegistry.regist(infra())
     }
 
+    getInfra(infraname) {
+        return this._infraRegistry.getTool(infraname);
+    }
+
     async $mount(dom) {
         const { 
             canvas, 
@@ -140,7 +144,6 @@ class JCanvas {
             height: c_height, 
             raw_width,
             raw_height,
-            left, top 
         } = createCanvas(dom);
         this._bindMeshAndRender = this.meshAndRender.bind(this);
         const adapter = await navigator.gpu.requestAdapter();
@@ -339,32 +342,36 @@ class JCanvas {
         let maskStack = [];
         const delayedMesh = [];
         let maxLayer = 0;
-        // let maskLayer = 0;
-        this._stage.traverse(
-            // callback
-            (instance) => {
-                if(instance.renderable) {
-                    instance._zIndex = zindex++;
-                    this.meshDirtyInstance(instance);
-                }
-                if(instance.mask) {
-                    maskIndex++;
-                    maskStack.push(maskIndex);
-                    if(instance._materialdirty || instance._geodirty) {
-                        delayedMesh.push(instance.mask)
-                    }
-                }
-                instance._maskIndex = maskStack[maskStack.length-1];
-                instance._maskLayer = maskStack.length;
-                maxLayer = Math.max(instance._maskLayer, maxLayer)
-            }, 
-            // callbackleave
-            (instance) => {
-                if(instance.mask) {
-                    maskStack.pop();
+        const traverseCallback = (instance, parentVisible) => {
+            instance._real_visible = instance._visible && instance.parent._real_visible;
+            if(instance.renderable) {
+                instance._zIndex = zindex++;
+                this.meshDirtyInstance(instance);
+            }
+            if(instance.mask) {
+                maskIndex++;
+                maskStack.push(maskIndex);
+                if(instance._materialdirty || instance._geodirty) {
+                    delayedMesh.push(instance.mask)
                 }
             }
-        );
+            if(instance.name === "Group") {
+                instance._zIndex = zindex;
+            }
+            instance._maskIndex = maskStack[maskStack.length-1];
+            instance._maskLayer = maskStack.length;
+            maxLayer = Math.max(instance._maskLayer, maxLayer)
+        }
+        const traverseEndCallback = (instance) => {
+            if(instance.mask) {
+                maskStack.pop();
+            }
+            instance._zIndexEnd = zindex;
+        }
+        // let maskLayer = 0;
+        this._stage.traverse(traverseCallback,  traverseEndCallback)
+        this._toolZIndexBegin = zindex;
+        this._stage.traverseTool(traverseCallback,  traverseEndCallback);
         // console.log(maxLayer, maskIndex)
         delayedMesh.forEach(instance => {
             this.meshDirtyInstance(instance);
@@ -479,6 +486,129 @@ class JCanvas {
             painter.clear();
         })
     }
+
+    extractLayers() {
+        const stage = this.stage;
+        const list = [];
+        genLayerList(stage, 0, (depth, currentShape, indexPath, elementsLength) => {
+            if(currentShape === stage) {
+                return;
+            }
+            list.push({
+                id: currentShape._uuid,
+                name: currentShape.name,
+                indexPath, 
+                depth,
+                shape: currentShape,
+                elementsLength,
+            })
+        })
+        return list;
+    }
+
+    renderShapeToNewCanvas(shape) {
+        const box = shape.getBoundingBox();
+        const w = box.RB[0] - box.LT[0];
+        const h = box.RB[1] - box.LT[1];
+        const { worldUniformBuffer, device } = this.context;
+        const { 
+            canvas, 
+            ctx, 
+            DPR, 
+            width: c_width, 
+            height: c_height, 
+            raw_width,
+            raw_height,
+        } = createRawCanvas(w, h);
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        ctx.configure({
+            device,
+            format: presentationFormat,
+            alphaMode: 'premultiplied',
+        });
+        const camera = Camera();
+        camera.projection(c_width, c_height);
+        camera.translate(box.LT[0], box.LT[1]);
+        camera.update();
+        const buffer = new Float32Array([
+            ...paddingMat3(camera.getProjectMatrix()),
+            ...paddingMat3(camera.getViewMatrix()),
+            ...paddingMat3(camera.getViewProjectMatrixInv()),
+            camera.getZoom(),
+            camera.getAspectRatio(),
+        ]);
+        device.queue.writeBuffer(worldUniformBuffer, 0, buffer);
+        
+        const depthTexture = _createDepthTexture(canvas, device);
+        
+        const encoder = device.createCommandEncoder();
+        const _painterRegistry = this._painterRegistry;
+        _painterRegistry.iterate((painter) => {
+            painter.beforeRender(encoder)
+        })
+
+        const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(ctx, depthTexture));
+        const { _maskIndex, _maskLayer, mask, _zIndex, _zIndexEnd } = shape;
+
+        const beginMaskLayer = _maskLayer;
+        const toolZIndexBegin = this._toolZIndexBegin;
+        const renderCondtion = (instance) => {
+            const currentZindex = instance._zIndex;
+            return currentZindex >= _zIndex && currentZindex <= _zIndexEnd && currentZindex < toolZIndexBegin;
+        }
+        passEncoder.setStencilReference(0);
+        shape.traverseOnlyLayer(
+            (i) => {
+                // if(i._maskLayer > maskLayer) {
+                    // render mask 
+                    // setStencilReference
+                    const { _maskIndex, _maskLayer, mask } = i;
+                    if(mask) {
+                        // console.log(`renderMaskBegin layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                        _painterRegistry.iterateOnInstance(mask, (painter) => {
+                            painter.renderMaskBegin(mask, encoder, passEncoder);
+                        });
+                        passEncoder.setStencilReference(_maskLayer - beginMaskLayer);
+                        // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                       
+                        // console.log('setStencilReference', _maskLayer - beginMaskLayer)
+                    }
+                    // console.log(`render layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                   
+                    
+                // }
+            }, (i) => {
+                // render mask end  
+                // setStencilReference
+                // const prevLayer = i._belongs._maskLayer;
+                // if(i._maskLayer > prevLayer) {
+                const { _maskIndex, _maskLayer, mask } = i;
+                if(mask) {
+                    // console.log('draw mask: ', _maskLayer)
+                     _painterRegistry.iterateGeneral((painter) => {
+                        painter.render(encoder, passEncoder, _maskIndex, renderCondtion)
+                    })
+                    // console.log(`renderMaskEnd layer:${_maskLayer}, maskIndex:${_maskIndex}`);
+                    _painterRegistry.iterateOnInstance(mask, (painter) => {
+                        painter.renderMaskEnd(mask, encoder, passEncoder);
+                    });
+                    passEncoder.setStencilReference(_maskLayer-1 - beginMaskLayer);
+                    // console.log('setStencilReference', _maskLayer-1 - beginMaskLayer)
+                }
+
+            });
+        passEncoder.setStencilReference(0);
+        _painterRegistry.iterateGeneral((painter) => {
+            painter.render(encoder, passEncoder, _maskIndex, renderCondtion)
+        })
+        passEncoder.end();
+        device.queue.submit([encoder.finish()]);
+        _painterRegistry.iterate((painter) => {
+            painter.afterRender()
+        })
+        return canvas;
+    }
+
 }
 
 export default JCanvas;

@@ -51,8 +51,8 @@ class ShaperPainter {
             cacheContext = {}
             beforeRender(encoder, this.configs, cacheContext)
         }
-        this._renderFn = (encoder, passEncoder, maskIndex) => {
-            render(encoder, passEncoder, maskIndex, this.configs, cacheContext)
+        this._renderFn = (encoder, passEncoder, maskIndex, renderCondition) => {
+            render(encoder, passEncoder, maskIndex, this.configs, cacheContext, renderCondition)
         }
         
         this._afterRenderFn = () => {
@@ -168,9 +168,9 @@ class ShaperPainter {
         }
     }
 
-    render(encoder, passEncoder, maskIndex) {
+    render(encoder, passEncoder, maskIndex, renderCondition) {
         if(this.static || this.configs.length) {
-            this._renderFn(encoder, passEncoder, maskIndex)
+            this._renderFn(encoder, passEncoder, maskIndex, renderCondition)
         }
     }
 

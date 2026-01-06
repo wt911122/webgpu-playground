@@ -87,6 +87,20 @@ class Layer extends BaseShape {
         }
     }
 
+    traverseOnlyLayer(callback, callbackLeave) {
+        // 由上层向下层绘制，保证 blender 顺序，以及模板检测效率
+        let i = this._stack.length-1;
+        while(i >= 0) {
+            const instance = this._stack[i];
+            if(instance._stack) {
+                traverseOnlyLayer(instance, callback, callbackLeave)
+            } else {
+                callback(instance);
+            }
+            i--;
+        }
+    }
+
     clear() {
         this._stack.length = 0;
     }
@@ -121,5 +135,22 @@ export function traverseOnlyLayer(layer, callback, callbackLeave) {
         }
         callbackLeave(layer);
     };
+}
+
+export function genLayerList(currentShape, depth = 0, callback, indexPath = 0, elementsLength) {
+    callback(depth, currentShape, indexPath, elementsLength);
+    const nextDepth = depth + 1;
+    const stack = currentShape._stack;
+    if(!stack) {
+        return;
+    }
+    const l = stack.length;
+    let i = l-1;
+
+    while(i >= 0) {
+        const shape = stack[i];
+        genLayerList(shape, nextDepth, callback, `${indexPath}.${i}`, l)
+        i--;
+    }
 }
 

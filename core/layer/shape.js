@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import * as d3 from 'd3-color';
 import { mat3, vec2 } from 'gl-matrix';
 import { paddingMat3 } from '../utils/transform';
@@ -9,6 +10,7 @@ import { JEventTarget } from '../event/event-target';
 
 const TRANSPARENT = 'rgba(0,0,0,0)';
 class BaseShape extends JEventTarget {
+    _uuid = uuidv4();
     _belongs = null;
 
     _position   = vec2.fromValues(0,0);
@@ -27,6 +29,7 @@ class BaseShape extends JEventTarget {
     _currentMat = mat3.create();
     _currentMatInv = mat3.create();
     _zIndex = 0; 
+    _zIndexEnd = 0;
     
     _maskIndex = 0;
     _maskLayer = 0;
@@ -37,6 +40,7 @@ class BaseShape extends JEventTarget {
 
     renderable = true;
     _visible = true;
+    _real_visible = true;
     _boundingbox = null;
     _localBoundingbox = null;
 

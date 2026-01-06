@@ -3,6 +3,7 @@ import Layer from './layer';
 import { calculateAngle, PI_2, RAD_TO_DEG, DEG_TO_RAD } from '../utils/geometric';
 
 class Group extends Layer {
+    name = "Group";
     renderable = false;
     lock = false;
     _mask = null;
