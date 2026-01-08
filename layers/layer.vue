@@ -1,7 +1,8 @@
 <template>
     <div class="layerpanel" ref="rootel">
         <div class="header">
-            Layers
+            <div>Layers ({{ list.length }}) </div>
+            <sub>右键可导出局部图片</sub>
         </div>
         <RecycleScroller
             ref="scroller"
@@ -113,7 +114,7 @@ function toggleVisible(e, item) {
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
 .layerpanel .header {
-    height: 1.5em;
+    height: 2.6em;
 }
 .layerpanel .scroller {
     width: 100%;
