@@ -37,9 +37,11 @@ import FontRegistry from './font/font-registry';
 
 import { TexturePainter } from './texture/painter';
 import { BlurFilterPainter } from './texture/filter/blur-filter.js'
+import Commander from './command/commander';
 
 class JCanvas {
     _stage = new Stage();
+    _layerDirty = false;
     _viewport = new Box();
     _lockBox = new Box();
     _indexRBush = new IndexRBush();
@@ -48,6 +50,7 @@ class JCanvas {
     _shapeRegistry = new Map();
     _infraRegistry = new InfraRegistry();
     _MSDFfontRegistry = new FontRegistry();
+    
 
     _mousevec = vec2.create();
 
@@ -146,6 +149,7 @@ class JCanvas {
             raw_height,
         } = createCanvas(dom);
         this._bindMeshAndRender = this.meshAndRender.bind(this);
+        this.commander = new Commander();
         const adapter = await navigator.gpu.requestAdapter();
         const device = await adapter.requestDevice();
         // device.addEventListener('uncapturederror', event => {
@@ -312,7 +316,7 @@ class JCanvas {
     }
 
     meshDirtyInstance(instance) {
-        if(instance._materialdirty || instance._geodirty) {
+        if(instance._materialdirty || instance._geodirty || this._hasCleared) {
             if(instance.useTexture) {
                 const painter = this._painterRegistry.getPainter('FilterPainter');
                 const dirty = painter.collectConfigHandler(instance, this);
@@ -332,16 +336,22 @@ class JCanvas {
             instance._geodirty = false;
         }
     }
+    
+    markLayerDirty() {
+        this._layerDirty = true;
+    }
+
 
     mesh() {
         const shapeRegistry = this._painterRegistry;
+        const _layerDirty = this._layerDirty;
         let zindex = 20;
         // console.time('mesh')
         
         let maskIndex = 0;
         let maskStack = [];
         const delayedMesh = [];
-        let maxLayer = 0;
+        // let maxLayer = 0;
         const traverseCallback = (instance, parentVisible) => {
             instance._real_visible = instance._visible && instance.parent._real_visible;
             if(instance.renderable) {
@@ -349,8 +359,11 @@ class JCanvas {
                 this.meshDirtyInstance(instance);
             }
             if(instance.mask) {
-                maskIndex++;
-                maskStack.push(maskIndex);
+                if(_layerDirty) {
+                    maskIndex++;
+                    maskStack.push(maskIndex);
+                }
+              
                 if(instance._materialdirty || instance._geodirty) {
                     delayedMesh.push(instance.mask)
                 }
@@ -358,12 +371,14 @@ class JCanvas {
             if(instance.name === "Group") {
                 instance._zIndex = zindex;
             }
-            instance._maskIndex = maskStack[maskStack.length-1];
-            instance._maskLayer = maskStack.length;
-            maxLayer = Math.max(instance._maskLayer, maxLayer)
+            if(_layerDirty) {
+                instance._maskIndex = maskStack[maskStack.length-1];
+                instance._maskLayer = maskStack.length;
+                // maxLayer = Math.max(instance._maskLayer, maxLayer)
+            }
         }
         const traverseEndCallback = (instance) => {
-            if(instance.mask) {
+            if(instance.mask && _layerDirty) {
                 maskStack.pop();
             }
             instance._zIndexEnd = zindex;
@@ -381,6 +396,53 @@ class JCanvas {
                 painter.afterCollectConfig();
             }
         })
+        if(_layerDirty) {
+            const commander = this.commander;
+            commander.reset();
+            commander.addCommand('stencil', 0);
+            const renderMaskBeginFn = (painter, mask) => {
+                const idx = painter.getConfigIndex(mask);
+                commander.addCommand('renderMaskBegin', idx, painter);
+            }
+            const renderMaskEndFn = (painter, mask) => {
+                const idx = painter.getConfigIndex(mask);
+                commander.addCommand('renderMaskEnd', idx, painter);
+            }
+            const renderFn2 = (painter, idx, maskIndex, maskLayer) => {
+                commander.addCommand('render', idx, painter, maskIndex, maskLayer);
+            }
+            const renderFn = (painter, maskIndex, maskLayer) => {
+                painter.filterByMask(renderFn2, maskIndex, maskLayer)
+            }
+            const _painterRegistry = this._painterRegistry;
+            this._stage.traverseOnlyLayer(
+                (i) => {
+                    const { _maskIndex, _maskLayer, mask } = i;
+                    if(mask) {
+                        _painterRegistry.iterateOnInstance(mask, renderMaskBeginFn);
+                        commander.addCommand('stencil', _maskLayer);
+                    }
+                }, (i) => {
+                    const { _maskIndex, _maskLayer, mask } = i;
+                    if(mask) {
+                        
+                        _painterRegistry.iterateGeneral(renderFn, _maskIndex, _maskLayer)
+
+                        _painterRegistry.iterateOnInstance(mask, renderMaskEndFn);
+                        commander.addCommand('stencil', _maskLayer-1);
+                    }
+                })
+            _painterRegistry.iterateStatic((painter) => {
+                commander.addCommand('render', undefined, painter);
+            })
+
+            _painterRegistry.iterateGeneral(renderFn)
+
+            commander.end();
+             console.log(commander)
+        }
+        // console.log(commander)
+                
         
         this._zIndexCounter = zindex + 20;
         this.context.device.queue.writeBuffer(
@@ -388,6 +450,8 @@ class JCanvas {
             0, 
             new Float32Array([this._zIndexCounter]));
         // console.timeEnd('mesh')
+        this._layerDirty = false;
+        this._hasCleared = false;
     }
 
     meshAndRender() {
@@ -413,7 +477,7 @@ class JCanvas {
         const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(this.context.ctx, this._depthTexture));
         // let maskLayer = -1;
 
-        passEncoder.setStencilReference(0);
+        /* passEncoder.setStencilReference(0);
         
         this._stage.traverseOnlyLayer(
             (i) => {
@@ -462,7 +526,8 @@ class JCanvas {
 
         _painterRegistry.iterateGeneral((painter) => {
             painter.render(encoder, passEncoder)
-        })
+        })*/
+        this.commander.exec(passEncoder)
         passEncoder.end();
 
         device.queue.submit([encoder.finish()]);
@@ -481,6 +546,7 @@ class JCanvas {
     }
 
     clear() {
+        this._hasCleared = true;
         this.stage.clear();
         this._painterRegistry.iterateGeneral(painter => {
             painter.clear();

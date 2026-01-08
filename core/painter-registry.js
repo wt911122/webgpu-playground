@@ -45,6 +45,8 @@ class ShaperPainter {
             onPainterCreate,
             renderMaskBegin,
             renderMaskEnd,
+            usePipeline,
+            renderInstance
         } = this._renderCreator(context);
         let cacheContext;
         this._beforeRenderFn = (encoder) => {
@@ -90,6 +92,30 @@ class ShaperPainter {
                 renderMaskEnd(encoder, passEncoder, this.configs, configIndex, cacheContext)
             }
         }
+
+        this._usePipeline = (passEncoder) => {
+            if(usePipeline) {
+                usePipeline(passEncoder)
+            }
+        };
+        this._renderInstance = (passEncoder, i) => {
+            if(renderInstance) {
+                renderInstance(passEncoder, this.configs, i)
+            }
+        };
+
+        this._renderMaskBegin = (passEncoder, i) => {
+            if(renderMaskBegin){
+                renderMaskBegin(undefined, passEncoder, this.configs, i)
+            }
+        }
+        this._renderMaskEnd = (passEncoder, i) => {
+            if(renderMaskBegin){
+                renderMaskEnd(undefined, passEncoder, this.configs, i)
+            }
+        }
+
+
         if(onPainterCreate) {
             onPainterCreate(this, context);
         }
@@ -188,6 +214,19 @@ class ShaperPainter {
         this._renderMaskEndFn(mask, encoder, passEncoder);
     }
 
+    getConfigIndex(instance) {
+        return this.configs.findIndex(c => c.getInstance() === instance);
+    }
+
+    filterByMask(callback, maskIndex, maskLayer) {
+        this.configs.forEach((c, idx) => {
+            const instance = c.getInstance();
+            if(instance._maskIndex === maskIndex) {
+                callback(this, idx, maskIndex, maskLayer);
+            }
+        });
+    }
+
     clear() {
         this.configs.splice(0, this.configs.length);
         this.configsWeakMap = new WeakMap();
@@ -216,22 +255,35 @@ class PainterRegistry {
 
     iterate(callback, filter) {
         this._painters.forEach(painter => {
-            if(!filter || filter(painter)) {
-                callback(painter)
-            }
+            callback(painter)
         });
     }
 
     iterateStatic(callback) {
-        this.iterate(callback, (painter) => painter.static)
+        this._painters.forEach(painter => {
+            if(painter.static) {
+                callback(painter)
+            }
+        });
+        // this.iterate(callback, (painter) => painter.static)
     }
 
-    iterateGeneral(callback) {
-        this.iterate(callback, (painter) => !painter.static)
+    iterateGeneral(callback, ...argus) {
+        this._painters.forEach(painter => {
+            if(!painter.static) {
+                callback(painter, ...argus)
+            }
+        });
+        // this.iterate(callback, (painter) => !painter.static)
     }
 
     iterateOnInstance(instance, callback) {
-        this.iterate(callback, (painter) => !painter.static && painter.getConfigFnMeta(instance))
+        this._painters.forEach(painter => {
+            if(!painter.static && painter.getConfigFnMeta(instance)) {
+                callback(painter, instance)
+            }
+        });
+        // this.iterate(callback, (painter) => !painter.static && painter.getConfigFnMeta(instance))
     }
 
     usePainter(ctor, painterName, configFnName, condition, idx, total) {

@@ -290,6 +290,30 @@ function SmoothPolyPainter() {
                
             }
         }
+
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderShapePipeline);
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            const config = configs[i];
+            if(!config.enable) {
+                return;
+            }
+            const pointArrLength = config.getPainterConfig('PointArrLength');
+            for(let j=0; j<pointArrLength; j++) {
+                const SegmentBuffer = config.getBuffer(`SegmentBuffer-${j}`);
+                const InstanceCount = config.getPainterConfig(`InstanceCount-${j}`);
+                const IndicesBuffer = config.getBuffer(`IndiceBuffer-${j}`);
+                passEncoder.setIndexBuffer(IndicesBuffer, 'uint16');
+                passEncoder.setVertexBuffer(0, SegmentBuffer);
+                
+                passEncoder.setBindGroup(0, globalBindGroup);  
+                passEncoder.setBindGroup(1, bindGroups[i]);  
+                passEncoder.drawIndexed(InstanceCount);
+            }
+        }
+        
         function afterRender(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
@@ -302,6 +326,8 @@ function SmoothPolyPainter() {
             render, 
             afterRender,
             collecInstanceConfig,
+            usePipeline,
+            renderInstance
         };
     }
 

@@ -88,9 +88,11 @@ class Stage extends Layer {
 
     clear() {
         // this._stack.length = 0;
+       
         this._stack.splice(0, this._stack.length);
         const indexRBush = this.jcanvas.indexRBush;
         indexRBush.destroy();
+        this.jcanvas.markLayerDirty();
         addDirtyWork(this.jcanvas._bindMeshAndRender);
         // this.meshAndRender();
     }

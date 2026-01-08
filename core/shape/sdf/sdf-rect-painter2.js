@@ -13,6 +13,7 @@ import {
     MASK_END_DEPTH_STENCIL_CONFIG,
 } from '../../utils/mask-depthStencil-config';
 import { prepareUniform } from '../../utils/shape-uniform';
+import { doOverlapBoxBounding } from '../../utils/box';
 
 function SDFRectPainter() {
     const MAX_OBJECTS = 30000;
@@ -393,6 +394,24 @@ function SDFRectPainter() {
             }
         }
 
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderShapePipeline);
+            passEncoder.setVertexBuffer(0, vertexBuffer);
+            passEncoder.setIndexBuffer(indicesBuffer, 'uint16');
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            const config = configs[i];
+            if(!config.enable) {
+                return;
+            }
+            const bindGroup = bindGroups[i];
+            const textureBindGroup = config.getBindGroup('textureBindGroup');
+            passEncoder.setBindGroup(0, bindGroup);  
+            passEncoder.setBindGroup(1, textureBindGroup);   
+            passEncoder.drawIndexed(6, 1);
+        }
+
         function afterRender(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
@@ -425,7 +444,9 @@ function SDFRectPainter() {
             render, 
             afterRender,
             renderMaskBegin,
-            renderMaskEnd
+            renderMaskEnd,
+            usePipeline,
+            renderInstance
         };
     }
 

@@ -287,9 +287,9 @@ function MSDFTextPainter() {
                 if(renderCondition && !renderCondition(instance)){
                     continue;
                 }
-                if(!doOverlapBoxBounding(config.getInstance().getBoundingBox(), viewport)) {
-                    continue
-                }
+                // if(!doOverlapBoxBounding(instance.getBoundingBox(), viewport)) {
+                //     continue
+                // }
                 // if(!doOverlapBoxBounding(config.getInstance().getBoundingBox(), viewport)) {
                 //     continue
                 // }
@@ -306,6 +306,25 @@ function MSDFTextPainter() {
                 passEncoder.setBindGroup(2, textBindGroup);
                 passEncoder.draw(4, measurements.printedCharCount);
             }
+        }
+
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderShapePipeline);
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            const config = configs[i];
+            if(!config.enable) {
+                return;
+            }
+            const font = config.getPainterConfig('Font');
+            const textBindGroup = config.getBindGroup('TextBindGroup');
+            const measurements = config.getPainterConfig('measurements');
+            const bindGroup = bindGroups[i];
+            passEncoder.setBindGroup(0, bindGroup);
+            passEncoder.setBindGroup(1, font.bindGroup);
+            passEncoder.setBindGroup(2, textBindGroup);
+            passEncoder.draw(4, measurements.printedCharCount);
         }
 
         function afterRender(cacheContext) {
@@ -348,7 +367,9 @@ function MSDFTextPainter() {
             render, 
             afterRender,
             renderMaskBegin,
-            renderMaskEnd
+            renderMaskEnd,
+            usePipeline,
+            renderInstance
         };
 
     }

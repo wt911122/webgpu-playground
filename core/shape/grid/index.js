@@ -102,11 +102,24 @@ function GridPainter() {
             painter.configs = [{}]
         }
 
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderPipeline);
+        }
+
+        function renderInstance(passEncoder) {
+            passEncoder.setVertexBuffer(0, vertexBuffer);
+            passEncoder.setIndexBuffer(indicesBuffer, "uint16");
+            passEncoder.setBindGroup(0, bindGroup);
+            passEncoder.drawIndexed(6, 1)
+        }
+
         return {
             beforeRender,
             render, 
             afterRender,
             onPainterCreate,
+            usePipeline,
+            renderInstance
         };
     }
 

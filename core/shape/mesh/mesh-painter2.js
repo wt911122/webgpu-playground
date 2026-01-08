@@ -387,6 +387,24 @@ function MeshPainter() {
                 passEncoder.drawIndexed(config.getPainterConfig('IndicesLength'), 1);
             }
         }
+
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderShapePipeline);
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            const config = configs[i];
+            if(!config.enable) {
+                return;
+            }
+            const bindGroup = bindGroups[i];
+            passEncoder.setVertexBuffer(0, config.getBuffer('VertexBuffer'));
+            passEncoder.setIndexBuffer(config.getBuffer('IndicesBuffer'), 'uint16');
+            passEncoder.setBindGroup(0, bindGroup);    
+            passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));  
+            passEncoder.drawIndexed(config.getPainterConfig('IndicesLength'), 1);
+        }
+
         function afterRender(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
@@ -422,7 +440,9 @@ function MeshPainter() {
             render, 
             afterRender,
             renderMaskBegin,
-            renderMaskEnd
+            renderMaskEnd,
+            usePipeline,
+            renderInstance,
         };
     }
     return {

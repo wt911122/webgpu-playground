@@ -302,6 +302,22 @@ function FilterPainter() {
             }
         }
 
+        function usePipeline(passEncoder) {
+            passEncoder.setPipeline(renderShapePipeline);
+            passEncoder.setVertexBuffer(0, vertexBuffer);
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            const config = configs[i];
+            if(!config.enable) {
+                return;
+            }
+            const bindGroup = bindGroups[i];
+            passEncoder.setBindGroup(0, bindGroup);  
+            passEncoder.setBindGroup(1, config.getBindGroup('textureBindGroup'));
+            passEncoder.draw(6);
+        }
+
         function afterRender(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
@@ -314,6 +330,8 @@ function FilterPainter() {
             beforeRender,
             render, 
             afterRender,
+            usePipeline,
+            renderInstance
         };
     }
 

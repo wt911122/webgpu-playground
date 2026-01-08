@@ -68,12 +68,21 @@ function DropShadowPainter() {
             // console.log('DropShadowPainter afterRender');
             filterRender.afterRender(cacheContext)
         }
+        function usePipeline(passEncoder) {
+            filterRender.usePipeline(passEncoder);
+        }
+
+        function renderInstance(passEncoder, configs, i) {
+            filterRender.renderInstance(passEncoder, configs, i);
+        }
 
         return {
             collecInstanceConfig,
             beforeRender,
             render,
             afterRender, 
+            usePipeline,
+            renderInstance
         }
     }
 

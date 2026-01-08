@@ -75,6 +75,7 @@ class Layer extends BaseShape {
 
     meshAndRender() {
         if(this.jcanvas._bindMeshAndRender) {
+            this.jcanvas.markLayerDirty();
             addDirtyWork(this.jcanvas._bindMeshAndRender);
         }
     }
@@ -119,22 +120,15 @@ export function traverse(layer, callback, callbackLeave) {
 }
 
 export function traverseOnlyLayer(layer, callback, callbackLeave) {
-    if(layer._stack) {
-        // callback(layer);
-        // layer._stack.forEach(instance => {
-        //     traverseOnlyLayer(instance, callback, callbackLeave)
-        // });
-        // callbackLeave(layer);
+    if(!layer._stack) return;
 
-        callback(layer);
-        let i = layer._stack.length-1;
-        while(i >= 0) {
-            const instance = layer._stack[i];
-            traverseOnlyLayer(instance, callback, callbackLeave)
-            i--;
-        }
-        callbackLeave(layer);
-    };
+    callback(layer);
+    const stack = layer._stack;
+    for (let i = stack.length - 1; i >= 0; i--) {
+        traverseOnlyLayer(stack[i], callback, callbackLeave)
+    }
+    callbackLeave(layer);
+    
 }
 
 export function genLayerList(currentShape, depth = 0, callback, indexPath = 0, elementsLength) {
