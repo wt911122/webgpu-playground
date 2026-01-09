@@ -38,6 +38,7 @@ import simpleFigmajson from './demo-figmajson-simple-json.json'
 import demoFigmaJsonBig222 from './demo-figmajson-mcp-json.json';
 import demodropshadow from './demo-figmadropshadow-shadow.json'
 import demodropshadow2 from './demo-dropshadow.json';
+import demotoobigjson from './demo-too-big.json';
 function toFixed (str) {
     return str.toFixed(0);
 }
@@ -61,8 +62,35 @@ function toFixed (str) {
     // const PolyLine = jc.useShape(PolyLineCtor);
     // const Text = jc.useShape(TextCtor);
 
-    await jc.registMSDFont('ya-hei-ascii', '/assets/font/');
-    await jc.registMSDFont('PingFangSC-Regular', '/assets/PingFangSC-msdf/');
+    // await jc.registMSDFont('ya-hei-ascii', '/assets/font/');
+    const fonts = [
+        'PingFangSC-Light',
+        'PingFangSC-Medium',
+        'PingFangSC-Regular',
+        'PingFangSC-Semibold',
+        'PingFangSC-Thin',
+        'PingFangSC-Ultralight',
+    ]
+    for(let i=0;i<fonts.length;i++) {
+        await jc.registMSDFont(fonts[i], `/assets/PingFangSC/${fonts[i]}/`);
+    }
+
+    function getFontFamilyByWeight(fontWeight) {
+        if(fontWeight <= 100) {
+            return 'PingFangSC-Thin';
+        } else if(fontWeight <= 200) {
+            return 'PingFangSC-Ultralight';
+        } else if(fontWeight <= 300) {
+            return 'PingFangSC-Light';
+        } else if(fontWeight <= 400) {
+            return 'PingFangSC-Regular';
+        } else if(fontWeight <= 500) {
+            return 'PingFangSC-Medium';
+        } else {
+            return 'PingFangSC-Semibold';
+        }
+    }
+    
 
     const Group = jc.getShapeCtor('Group');
     const Ellipse = jc.getShapeCtor('Ellipse');
@@ -257,7 +285,7 @@ function toFixed (str) {
                 textAlignVertical: data.textAlignVertical,
                 lineHeight: data.lineHeight,
                 ...resolveFillColor(data.color),
-                fontFamily: 'PingFangSC-Regular',
+                fontFamily: getFontFamilyByWeight(data.fontWeight), //'PingFangSC-Regular',
                 fontSize: data.fontSize,
                 autoWrap: data.autoWrap,
                 ellipseEnd: data.ellipseEnd,
@@ -385,17 +413,19 @@ function toFixed (str) {
             .then(response => response.json())
             .then(data => {
                 jc.clear();
+                console.log(data);
                 loadFromFigma(data);
+                
                 ListInterface.update(jc.extractLayers());
                 // console.log(JSON.stringify(data, null, 2));
             });
     })
 
     const list = [
-        { text: '设计稿1', value: arrowFigmajson },
+        { text: '设计稿1', value: demoFigmaJson },
         { text: '设计稿2', value: figmademojsonBig2 },
         { text: '设计稿3', value: demoFigmaJsonBig222 },
-        { text: '设计稿4', value: demodropshadow }
+        { text: '设计稿4', value: demotoobigjson }
     ]
     var container = document.getElementById('designerlist');
     list.forEach(item => {
@@ -1072,8 +1102,8 @@ setBlendConstant().
         t.shadowBlur = 0
     }
     // let i=0;
-    // while(i<1000) {
-    //     const circle = Rectangle({
+    // while(i<10000) {
+    //     const circle = Ellipse({
     //         cx: Math.random()*800,
     //         cy: Math.random()*600,
     //         width: Math.random()*20 + 5,
@@ -1082,10 +1112,10 @@ setBlendConstant().
     //         stroke: 'black',
     //         strokeWidth: 1,
     //         // borderRadius: 10,
-    //         strokeLineDash: [1, 10]
+    //         // strokeLineDash: [1, 10]
             
     //     });
-    //     console.log(circle.fill)
+    //     // console.log(circle.fill)
     //     stage.addToStack(circle);
     //     circle.addEventListener('mouseenter', onMouseEnter)
     //     circle.addEventListener('mouseleave', onMouseLeave)

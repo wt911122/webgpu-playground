@@ -160,6 +160,7 @@ export function iterator(json, t, parentAbsPos = { x:0, y: 0}) {
             width, height,
             content: json.characters,
             fontSize: json.style.fontSize,
+            fontWeight: json.style.fontWeight,
             textAlignHorizontal: json.style.textAlignHorizontal,
             textAlignVertical: json.style.textAlignVertical,
             lineHeight: json.style.lineHeightPx,
