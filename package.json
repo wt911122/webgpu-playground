@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite .",
-    "build:font": "msdf-bmfont --reuse -o ./PingFangSC-msdf/atlas.png -i ./PingFangSC-msdf/charset.txt -f json ./PingFangSC-main/ttf/PingFangSC-Regular.ttf",
+    "build:font": "msdf-bmfont --reuse -o ./assets/PingFangSC-msdf/atlas.png -i ./assets/PingFangSC-msdf/charset.txt -f json ./assets/PingFangSC-main/ttf/PingFangSC-Regular.ttf",
     "build:demo": "vite build --config  ./vite.demobuild.config.js"
   },
   "author": "",
