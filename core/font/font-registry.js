@@ -193,9 +193,17 @@ class FontRegistry {
     }
 
     async load(device) {
+        const loadingpanel = document.createElement('div');
+        loadingpanel.style = 'position: absolute; right: 20px; top: 20px;';
+        document.body.append(loadingpanel);
         await Promise.all(Array.from(this._fonts).map(async ([fontFamily, font]) => {
+            const elem = document.createElement('div');
+            loadingpanel.append(elem);
+            elem.innerHTML = `加载字体${font.fontFamily}`;
             await font.load(device);
+            elem.innerHTML = `字体${font.fontFamily}加载完成`;
         }));
+        loadingpanel.remove();
     }
 
     getFont(fontFamily) {

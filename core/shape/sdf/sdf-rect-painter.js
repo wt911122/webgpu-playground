@@ -177,7 +177,7 @@ function SDFRectPainter() {
             })
         }
 
-        function beforeRender(encoder, configs, cacheContext) {
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             const transferBuffer = getMappedTransferBuffer();
             const uniformValues = new Float32Array(transferBuffer.getMappedRange());
@@ -293,16 +293,16 @@ function SDFRectPainter() {
             transferBuffer.unmap();
         }
 
-        function afterRender(cacheContext) {
+        function prepareTransferBuffer(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 mappedTransferBuffers.push(transferBuffer);
             });
         }
         return {
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
         };
     }
     

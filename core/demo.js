@@ -72,7 +72,7 @@ function toFixed (str) {
         'PingFangSC-Ultralight',
     ]
     for(let i=0;i<fonts.length;i++) {
-        await jc.registMSDFont(fonts[i], `/assets/PingFangSC/${fonts[i]}/`);
+        jc.registMSDFont(fonts[i], `/webgpu-playground/assets/PingFangSC/${fonts[i]}/`);
     }
 
     function getFontFamilyByWeight(fontWeight) {
