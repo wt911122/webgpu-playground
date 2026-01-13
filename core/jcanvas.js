@@ -396,6 +396,7 @@ class JCanvas {
                 painter.afterCollectConfig();
             }
         })
+        // console.log(_layerDirty);
         if(_layerDirty) {
             const commander = this.commander;
             commander.reset();
@@ -439,7 +440,7 @@ class JCanvas {
             _painterRegistry.iterateGeneral(renderFn)
 
             commander.end();
-             console.log(commander)
+            //  console.log(commander)
         }
         // console.log(commander)
                 
@@ -450,8 +451,28 @@ class JCanvas {
             0, 
             new Float32Array([this._zIndexCounter]));
         // console.timeEnd('mesh')
+            // console.log(_layerDirty);
+        const device = this.context.device;
+        const encoder = device.createCommandEncoder();
+        this._painterRegistry.iterate((painter) => {
+            if(painter._dirty) {
+                painter.prepareUniformBuffer(encoder)
+            }
+            
+        })
+        device.queue.submit([encoder.finish()]);
+
+        this._painterRegistry.iterate((painter) => {
+            if(painter._dirty) {
+                painter.prepareTransferBuffer()
+            }
+        })
+
         this._layerDirty = false;
         this._hasCleared = false;
+        this._painterRegistry.iterate((painter) => {
+            painter._dirty = false;
+        })
     }
 
     meshAndRender() {
@@ -465,9 +486,7 @@ class JCanvas {
         const device = this.context.device;
         const encoder = device.createCommandEncoder();
         const _painterRegistry = this._painterRegistry;
-        _painterRegistry.iterate((painter) => {
-            painter.beforeRender(encoder)
-        })
+       
         /* const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(this.context.ctx, this._depthTexture));
         this._painterRegistry.iterate((painter) => {
             painter.render(encoder, passEncoder)
@@ -531,9 +550,7 @@ class JCanvas {
         passEncoder.end();
 
         device.queue.submit([encoder.finish()]);
-        _painterRegistry.iterate((painter) => {
-            painter.afterRender()
-        })
+        
     }
 
     doCollection(instance, layerTransformer, renderCounter) {
@@ -610,7 +627,7 @@ class JCanvas {
         const encoder = device.createCommandEncoder();
         const _painterRegistry = this._painterRegistry;
         _painterRegistry.iterate((painter) => {
-            painter.beforeRender(encoder)
+            painter.prepareUniformBuffer(encoder)
         })
 
         const passEncoder = encoder.beginRenderPass(_createRenderPassDescriptor(ctx, depthTexture));
@@ -670,7 +687,7 @@ class JCanvas {
         passEncoder.end();
         device.queue.submit([encoder.finish()]);
         _painterRegistry.iterate((painter) => {
-            painter.afterRender()
+            painter.prepareTransferBuffer()
         })
         return canvas;
     }

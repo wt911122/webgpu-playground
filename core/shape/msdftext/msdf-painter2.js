@@ -13,7 +13,7 @@ import { prepareUniform } from '../../utils/shape-uniform';
 import { measureText } from './measure-text';
 
 function MSDFTextPainter() {
-    const MAX_OBJECTS = 30000;
+    const MAX_OBJECTS = 10000;
 
     function generateRender(context) {
         const device = context.device;
@@ -132,7 +132,8 @@ function MSDFTextPainter() {
             uniformBufferSpace,
             bindGroups,
             prepareRender,
-            cacheTransferBuffer
+            cacheTransferBuffer,
+            transferData
         } = prepareUniform(device, {
             MAX_OBJECTS,
             uniformBufferSize,
@@ -235,7 +236,7 @@ function MSDFTextPainter() {
             instance.updateBoundingBox();
         }
 
-        function beforeRender(encoder, configs, cacheContext) {
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects)
             
@@ -270,6 +271,7 @@ function MSDFTextPainter() {
                 copyMat3(shapeMatrixValue, mat);
             }
             transferBuffer.unmap();
+            transferData(encoder, transferBuffer, numObjects);
         }
 
         function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
@@ -327,7 +329,7 @@ function MSDFTextPainter() {
             passEncoder.draw(4, measurements.printedCharCount);
         }
 
-        function afterRender(cacheContext) {
+        function prepareTransferBuffer(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 cacheTransferBuffer(transferBuffer);
@@ -363,9 +365,9 @@ function MSDFTextPainter() {
         }
         return {
             collecInstanceConfig,
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             renderMaskBegin,
             renderMaskEnd,
             usePipeline,

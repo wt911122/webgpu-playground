@@ -280,7 +280,9 @@ function SDFRectPainter() {
             uniformBufferSpace,
             bindGroups,
             prepareRender,
-            cacheTransferBuffer
+            cacheTransferBuffer,
+            transferData,
+            transferInstanceData
         } = prepareUniform(device, {
             MAX_OBJECTS,
             uniformBufferSize,
@@ -306,7 +308,53 @@ function SDFRectPainter() {
             }
         }
 
-        function beforeRender(encoder, configs, cacheContext) {
+        function _updateInstanceUniform(config, i, uniformValues) {
+            const {
+                x, y, w, h, strokeWidth, borderRadius, type, _zIndex, mat, _colors, texture, _opacity
+            } = config.getConfig();
+            const uniformBufferOffset = i * uniformBufferSpace;
+            const f32Offset = uniformBufferOffset / 4;
+            const materialValue = uniformValues.subarray(
+                f32Offset + MATIRIAL_OFFSET, 
+                f32Offset + TRAN_OFFSET);
+            const shapeMatrixValue = uniformValues.subarray(
+                f32Offset + TRAN_OFFSET, 
+                f32Offset + TRAN_OFFSET + 12);
+            
+            materialValue[0] = x;
+            materialValue[1] = y;
+            materialValue[2] = w;
+            materialValue[3] = h;
+
+            materialValue[4] = _zIndex;
+            materialValue[5] = type;
+            materialValue[6] = _opacity;//_strokeLineDash?.length || 0;
+            materialValue[7] = texture ? 1: 0;
+
+            materialValue[8] = strokeWidth.top;
+            materialValue[9] = strokeWidth.right;
+            materialValue[10] = strokeWidth.bottom;
+            materialValue[11] = strokeWidth.left;
+
+            materialValue[12] = borderRadius?.topRight || 0;
+            materialValue[13] = borderRadius?.bottomRight  || 0;
+            materialValue[14] = borderRadius?.topLeft  || 0;
+            materialValue[15] = borderRadius?.bottomLeft || 0;
+            
+            // fill
+            materialValue[16] = _colors[0];
+            materialValue[17] = _colors[1];
+            materialValue[18] = _colors[2];
+            materialValue[19] = _colors[3];
+            // stroke
+            materialValue[20] = _colors[4];
+            materialValue[21] = _colors[5];
+            materialValue[22] = _colors[6];
+            materialValue[23] = _colors[7];
+            copyMat3(shapeMatrixValue, mat);
+        }
+
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             // console.log(numObjects);
             const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects)
@@ -316,54 +364,24 @@ function SDFRectPainter() {
                 if(!config.enable) {
                     continue;
                 }
-                const {
-                    x, y, w, h, strokeWidth, borderRadius, type, _zIndex, mat, _colors, texture, _opacity
-                } = config.getConfig();
-                const uniformBufferOffset = i * uniformBufferSpace;
-                const f32Offset = uniformBufferOffset / 4;
-                const materialValue = uniformValues.subarray(
-                    f32Offset + MATIRIAL_OFFSET, 
-                    f32Offset + TRAN_OFFSET);
-                const shapeMatrixValue = uniformValues.subarray(
-                    f32Offset + TRAN_OFFSET, 
-                    f32Offset + TRAN_OFFSET + 12);
-                
-                materialValue[0] = x;
-                materialValue[1] = y;
-                materialValue[2] = w;
-                materialValue[3] = h;
-
-                materialValue[4] = _zIndex;
-                materialValue[5] = type;
-                materialValue[6] = _opacity;//_strokeLineDash?.length || 0;
-                materialValue[7] = texture ? 1: 0;
-
-                materialValue[8] = strokeWidth.top;
-                materialValue[9] = strokeWidth.right;
-                materialValue[10] = strokeWidth.bottom;
-                materialValue[11] = strokeWidth.left;
-
-                materialValue[12] = borderRadius?.topRight || 0;
-                materialValue[13] = borderRadius?.bottomRight  || 0;
-                materialValue[14] = borderRadius?.topLeft  || 0;
-                materialValue[15] = borderRadius?.bottomLeft || 0;
-                
-                // fill
-                materialValue[16] = _colors[0];
-                materialValue[17] = _colors[1];
-                materialValue[18] = _colors[2];
-                materialValue[19] = _colors[3];
-                // stroke
-                materialValue[20] = _colors[4];
-                materialValue[21] = _colors[5];
-                materialValue[22] = _colors[6];
-                materialValue[23] = _colors[7];
-                copyMat3(shapeMatrixValue, mat);
+                _updateInstanceUniform(config, i, uniformValues)
             }
 
             transferBuffer.unmap();
+            // console.log('unmap');
+            transferData(encoder, transferBuffer, numObjects);
             cacheContext.transferBuffer = transferBuffer;
         }
+        
+        // function updateInstancesUniformBuffer(encoder, configs, ids) {
+        //     const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects);
+        //     ids.forEach(i => {
+        //         _updateInstanceUniform(config, i, uniformValues);
+        //     })
+        //     transferBuffer.unmap();
+        //     transferInstanceData(encoder, transferBuffer, ids);
+        // }
+
         // const layers = [11, 12];
         function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
             let _f = false;
@@ -412,8 +430,8 @@ function SDFRectPainter() {
             passEncoder.drawIndexed(6, 1);
         }
 
-        function afterRender(cacheContext) {
-            const transferBuffer = cacheContext.transferBuffer
+        function prepareTransferBuffer(cacheContext) {
+            const transferBuffer = cacheContext.transferBuffer;
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 cacheTransferBuffer(transferBuffer);
             });
@@ -440,13 +458,14 @@ function SDFRectPainter() {
 
         return {
             collecInstanceConfig,
-            beforeRender,
+            prepareUniformBuffer,
+            // updateInstancesUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             renderMaskBegin,
             renderMaskEnd,
             usePipeline,
-            renderInstance
+            renderInstance,
         };
     }
 

@@ -26,7 +26,7 @@ class FilterConfig extends InstanceConfig {
 }
 
 function FilterPainter() {
-    const MAX_OBJECTS = 30000;
+    const MAX_OBJECTS = 10000;
     const VERTEX_ARRAY = new Float32Array([
         // top left 
         0.0, 1.0, 0.0, 0.0,
@@ -149,7 +149,8 @@ function FilterPainter() {
             uniformBufferSpace,
             bindGroups,
             prepareRender,
-            cacheTransferBuffer
+            cacheTransferBuffer,
+            transferData
         } = prepareUniform(device, {
             MAX_OBJECTS,
             uniformBufferSize,
@@ -239,7 +240,7 @@ function FilterPainter() {
 
         }
 
-        function beforeRender(encoder, configs, cacheContext) {
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             // console.log(numObjects);
             const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects)
@@ -272,6 +273,7 @@ function FilterPainter() {
 
             }
             transferBuffer.unmap();
+            transferData(encoder, transferBuffer, numObjects);
             cacheContext.transferBuffer = transferBuffer;
         }
 
@@ -318,7 +320,7 @@ function FilterPainter() {
             passEncoder.draw(6);
         }
 
-        function afterRender(cacheContext) {
+        function prepareTransferBuffer(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 cacheTransferBuffer(transferBuffer);
@@ -327,9 +329,9 @@ function FilterPainter() {
 
         return {
             collecInstanceConfig,
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             usePipeline,
             renderInstance
         };

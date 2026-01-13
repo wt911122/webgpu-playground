@@ -151,6 +151,7 @@ function SmoothPolyPainter() {
             bindGroups,
             prepareRender,
             cacheTransferBuffer,
+            transferData
         } = prepareUniform(device, {
             MAX_OBJECTS,
             uniformBufferSize,
@@ -213,7 +214,7 @@ function SmoothPolyPainter() {
             }
         }
 
-         function beforeRender(encoder, configs, cacheContext) {
+         function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects);
             cacheContext.transferBuffer = transferBuffer;
@@ -254,6 +255,7 @@ function SmoothPolyPainter() {
             }
 
             transferBuffer.unmap();
+            transferData(encoder, transferBuffer, numObjects);
         }
 
         function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
@@ -314,7 +316,7 @@ function SmoothPolyPainter() {
             }
         }
         
-        function afterRender(cacheContext) {
+        function prepareTransferBuffer(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 cacheTransferBuffer(transferBuffer);
@@ -322,9 +324,9 @@ function SmoothPolyPainter() {
         }
 
         return {
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             collecInstanceConfig,
             usePipeline,
             renderInstance

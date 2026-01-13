@@ -56,17 +56,17 @@ function DropShadowPainter() {
                 }
             }], modifyConfig);
         }
-        function beforeRender(encoder, configs, cacheContext) {
-            // console.log('DropShadowPainter beforeRender');
-            filterRender.beforeRender(encoder, configs, cacheContext);
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
+            // console.log('DropShadowPainter prepareUniformBuffer');
+            filterRender.prepareUniformBuffer(encoder, configs, cacheContext);
         }
         function render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition) {
             // console.log('DropShadowPainter render');
             filterRender.render(encoder, passEncoder, maskIndex, configs, cacheContext, renderCondition)
         }
-        function afterRender(cacheContext) {
-            // console.log('DropShadowPainter afterRender');
-            filterRender.afterRender(cacheContext)
+        function prepareTransferBuffer(cacheContext) {
+            // console.log('DropShadowPainter prepareTransferBuffer');
+            filterRender.prepareTransferBuffer(cacheContext)
         }
         function usePipeline(passEncoder) {
             filterRender.usePipeline(passEncoder);
@@ -78,9 +78,9 @@ function DropShadowPainter() {
 
         return {
             collecInstanceConfig,
-            beforeRender,
+            prepareUniformBuffer,
             render,
-            afterRender, 
+            prepareTransferBuffer, 
             usePipeline,
             renderInstance
         }

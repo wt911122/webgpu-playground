@@ -86,7 +86,7 @@ function GridPainter() {
             ],
         });
 
-        function beforeRender() {}
+        function prepareUniformBuffer() {}
 
         function render(encoder, passEncoder) {
             passEncoder.setPipeline(renderPipeline);
@@ -96,7 +96,7 @@ function GridPainter() {
             passEncoder.drawIndexed(6, 1)
         }
 
-        function afterRender() {}
+        function prepareTransferBuffer() {}
 
         function onPainterCreate(painter) {
             painter.configs = [{}]
@@ -114,9 +114,9 @@ function GridPainter() {
         }
 
         return {
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             onPainterCreate,
             usePipeline,
             renderInstance

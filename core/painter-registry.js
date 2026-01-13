@@ -14,9 +14,9 @@ class ShaperPainter {
     _renderCreator = null;
     _renderTextureCreator = null;
     
-    _beforeRenderFn = null;
+    _prepareUniformBufferFn = null;
     _renderFn = null;
-    _afterRenderFn = null;
+    _prepareTransferBufferFn = null;
 
     static = false;
 
@@ -37,9 +37,9 @@ class ShaperPainter {
 
     init(context) {
         const { 
-            beforeRender, 
+            prepareUniformBuffer, 
             render, 
-            afterRender,
+            prepareTransferBuffer,
             collecInstanceConfig,
             afterCollectConfig,
             onPainterCreate,
@@ -49,16 +49,16 @@ class ShaperPainter {
             renderInstance
         } = this._renderCreator(context);
         let cacheContext;
-        this._beforeRenderFn = (encoder) => {
+        this._prepareUniformBufferFn = (encoder) => {
             cacheContext = {}
-            beforeRender(encoder, this.configs, cacheContext)
+            prepareUniformBuffer(encoder, this.configs, cacheContext)
         }
         this._renderFn = (encoder, passEncoder, maskIndex, renderCondition) => {
             render(encoder, passEncoder, maskIndex, this.configs, cacheContext, renderCondition)
         }
         
-        this._afterRenderFn = () => {
-            afterRender(cacheContext);
+        this._prepareTransferBufferFn = () => {
+            prepareTransferBuffer(cacheContext);
             cacheContext = undefined;
         }
 
@@ -188,9 +188,9 @@ class ShaperPainter {
         this._afterCollectConfig();
     }
 
-    beforeRender(encoder) {
+    prepareUniformBuffer(encoder) {
         if(this.configs.length) {
-            this._beforeRenderFn(encoder)
+            this._prepareUniformBufferFn(encoder)
         }
     }
 
@@ -200,9 +200,9 @@ class ShaperPainter {
         }
     }
 
-    afterRender() {
+    prepareTransferBuffer() {
         if(this.configs.length) {
-            this._afterRenderFn()
+            this._prepareTransferBufferFn()
         }
     }
 

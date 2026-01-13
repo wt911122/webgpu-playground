@@ -12,11 +12,13 @@ export function prepareUniform(device, {
 }) {
     
     const uniformBufferSpace = roundUp(uniformBufferSize, device.limits.minUniformBufferOffsetAlignment);
+    // console.log(uniformBufferSpace)
     const uniformBuffer = device.createBuffer({
         label: 'uniforms',
         size: uniformBufferSpace * MAX_OBJECTS,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+
 
     const mappedTransferBuffers = [];
     const getMappedTransferBuffer = () => {
@@ -51,16 +53,31 @@ export function prepareUniform(device, {
     function prepareRender(encoder, numObjects) {
         const transferBuffer = getMappedTransferBuffer();
         const uniformValues = new Float32Array(transferBuffer.getMappedRange());
+        // const size = (numObjects - 1) * uniformBufferSpace + uniformBufferSize;
+        // encoder.copyBufferToBuffer(transferBuffer, 0, uniformBuffer, 0, size);
+        return { uniformValues, transferBuffer };
+    }
+    function transferData(encoder, transferBuffer, numObjects) {
         const size = (numObjects - 1) * uniformBufferSpace + uniformBufferSize;
         encoder.copyBufferToBuffer(transferBuffer, 0, uniformBuffer, 0, size);
-        return { uniformValues, transferBuffer };
+        // encoder.copyBufferToBuffer(transferBuffer, 0, checkuniformBuffer, 0, size);
+        // logBufferData(checkuniformBuffer)
+    }
+
+    function transferInstanceData(encoder, transferBuffer, ids) {
+        ids.forEach(i => {
+            const begin = i * uniformBufferSpace;
+            encoder.copyBufferToBuffer(transferBuffer, begin, uniformBuffer, begin, uniformBufferSize);
+        })
     }
 
     return {
         uniformBufferSpace,
         bindGroups,
         prepareRender,
-        cacheTransferBuffer
+        cacheTransferBuffer,
+        transferData,
+        transferInstanceData
     }
 
 }

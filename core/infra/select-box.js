@@ -68,7 +68,7 @@ function SelectBox() {
         // cpRotate.visible = true;
         root.visible = true;
         root.updateWorldMatrix();
-        console.log('root updateWorldMatrix');
+        // console.log('root updateWorldMatrix');
     }
 
     function _hide(temporary) {

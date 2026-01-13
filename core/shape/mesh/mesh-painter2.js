@@ -12,7 +12,7 @@ import {
 import { prepareUniform, createFloatBufferAtCreate, createUnit16BufferAtCreate } from '../../utils/shape-uniform';
 
 function MeshPainter() {
-    const MAX_OBJECTS = 30000;
+    const MAX_OBJECTS = 10000;
 
     function generateTextureRender(context) {
         const device = context.device;
@@ -263,7 +263,8 @@ function MeshPainter() {
             uniformBufferSpace,
             bindGroups,
             prepareRender,
-            cacheTransferBuffer
+            cacheTransferBuffer,
+            transferData
         } = prepareUniform(device, {
             MAX_OBJECTS,
             uniformBufferSize,
@@ -316,7 +317,7 @@ function MeshPainter() {
 
         }
 
-        function beforeRender(encoder, configs, cacheContext) {
+        function prepareUniformBuffer(encoder, configs, cacheContext) {
             const numObjects = configs.length;
             const { uniformValues, transferBuffer } = prepareRender(encoder, numObjects)
             
@@ -357,6 +358,7 @@ function MeshPainter() {
                 copyMat3(shapeMatrixValue, mat);
             }
             transferBuffer.unmap();
+            transferData(encoder, transferBuffer, numObjects);
         }
 
 
@@ -405,7 +407,7 @@ function MeshPainter() {
             passEncoder.drawIndexed(config.getPainterConfig('IndicesLength'), 1);
         }
 
-        function afterRender(cacheContext) {
+        function prepareTransferBuffer(cacheContext) {
             const transferBuffer = cacheContext.transferBuffer
             transferBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
                 cacheTransferBuffer(transferBuffer);
@@ -436,9 +438,9 @@ function MeshPainter() {
 
         return {
             collecInstanceConfig,
-            beforeRender,
+            prepareUniformBuffer,
             render, 
-            afterRender,
+            prepareTransferBuffer,
             renderMaskBegin,
             renderMaskEnd,
             usePipeline,
